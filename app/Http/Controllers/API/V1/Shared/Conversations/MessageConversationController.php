@@ -1,0 +1,96 @@
+<?php
+
+namespace App\Http\Controllers\API\V1\Shared\Conversations;
+
+use App\Http\Controllers\Controller;
+use App\Http\Services\Shared\ShippingService;
+use App\Models\Conversation;
+use App\Models\MessageConversation;
+use App\Traits\NotificationsTrait;
+use App\Utils\UploadUtils;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+
+class MessageConversationController extends Controller
+{
+    use NotificationsTrait;
+
+    public function __construct(protected ShippingService $shippingService) {}
+
+    public function index(Request $request, $conversationId)
+    {
+        $lastId = $request->query('last_message_id', 0);
+
+        $messages = MessageConversation::join('users', 'users.id', '=', 'message_conversations.sender_id')
+            ->where('message_conversations.conversation_id', $conversationId)
+            ->where('message_conversations.id', '>', $lastId)
+            ->select(
+                'message_conversations.id',
+                'message_conversations.sender_id',
+                'message_conversations.body',
+                'message_conversations.image',
+                'message_conversations.is_shipping_request',
+                'message_conversations.created_at as date_sent',
+            )
+            ->orderBy('message_conversations.id', 'asc')
+            ->get();
+
+        return buildApiResponseHelper(true, 'تم ارسال الرسالة بنجاح', $messages);
+    }
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'conversationId' => 'required|exists:conversations,id',
+            'requestId' => 'required|integer',
+            'responseId' => 'required|integer',
+            'body' => 'nullable|string',
+            'isSendShippingRequest' => 'nullable|boolean',
+            'shippingInfo' => 'nullable',
+            'image' => 'nullable|image|mimes:png,jpg,jpeg,gif,webp|max:10000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $userId = getCurrUserIdHelper();
+        $receiverId = Conversation::getReceiverId($request->conversationId, $userId);
+
+        $fileName = UploadUtils::uploadImageToStorage($request->image);
+
+        $created = MessageConversation::create([
+            'conversation_id' => $request->conversationId,
+            'sender_id' => $userId,
+            'body' => $request->body,
+            'is_shipping_request' => $request->isSendShippingRequest,
+            'image' => $fileName
+        ]);
+
+
+        if ($created) {
+            $messagesNotify =  'رسالة جديدة من الطلب رقم' . ' ( ' . $request->requestId . ' )';
+            if ($request->shippingInfo != null && $request->isSendShippingRequest == true && $request->shippingInfo != '') {
+                $shippingInfo = json_decode($request->shippingInfo, true);
+                $this->shippingService->storeShippingRequest(
+                    requestId: $request->requestId,
+                    responseId: $request->responseId,
+                    orderNumber: 'REQ-' . $request->requestId . '-RES-' . $request->responseId . '-MSG-' . $created->id,
+                    cityOriginVendor: $shippingInfo['city'],
+                    addressOriginVendor: $shippingInfo['address'],
+                    phoneOriginVendor: $shippingInfo['phone'],
+                    length: $shippingInfo['length'],
+                    width: $shippingInfo['width'],
+                    height: $shippingInfo['height'],
+                    weight: $shippingInfo['weight']
+                );
+                $messagesNotify =  'طلب شحن جديد من الطلب رقم' . ' ( ' . $request->requestId . ' )';
+            }
+
+            $this->notifyByID(userId: $receiverId, title: $messagesNotify, body: $request->body, notifyDB: false);
+        }
+
+        return buildApiResponseHelper(true, 'تم ارسال الرسالة بنجاح');
+    }
+}
