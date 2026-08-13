@@ -42,5 +42,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::before(function ($user, $ability) {
             return $user->hasRole(UserRoleEnum::Super_Admin->value) ? true : null;
         });
+
+        if ($this->app->environment('production') || env('FORCE_HTTPS', false)) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
     }
 }

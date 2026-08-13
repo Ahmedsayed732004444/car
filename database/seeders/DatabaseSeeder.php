@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
         //     'email' => 'test@example.com',
         // ]);
 
-        $this->call([
+        $seeders = [
             PermissionSeeder::class,
             AdminSeeder::class,
             CacheStaticDataVersionSeeder::class,
@@ -28,7 +28,12 @@ class DatabaseSeeder extends Seeder
             BrandCarSeeder::class,
             CategorySeeder::class,
             CategoryHasBrandFieldSeeder::class,
-            TestSeeder::class,
-        ]);
+        ];
+
+        if (app()->environment(['local', 'testing'])) {
+            $seeders[] = TestSeeder::class;
+        }
+
+        $this->call($seeders);
     }
 }
