@@ -22,8 +22,10 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
         Route::get('/vendor-conversations', 'getVendorConversations');
     });
 
-    Route::prefix('/notifications')->controller(App\Http\Controllers\API\V1\Shared\NotificationController::class)->group(function () {
-        Route::get('/', 'index');
+    Route::prefix('/notifications')->group(function () {
+        Route::get('/unread-counts', [App\Http\Controllers\Api\NotificationBadgeController::class, 'unreadCounts']);
+        Route::post('/mark-category-read', [App\Http\Controllers\Api\NotificationBadgeController::class, 'markCategoryRead']);
+        Route::get('/', [App\Http\Controllers\API\V1\Shared\NotificationController::class, 'index']);
     });
 });
 

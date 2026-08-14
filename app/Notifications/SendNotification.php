@@ -11,11 +11,15 @@ class SendNotification extends Notification
 
     protected $title;
     protected $body;
+    protected $category;
+    protected $targetId;
 
-    public function __construct($title, $body)
+    public function __construct($title, $body, $category = 'customer_requests', $targetId = null)
     {
         $this->title = $title;
         $this->body = $body;
+        $this->category = $category;
+        $this->targetId = $targetId;
     }
 
     /**
@@ -37,7 +41,9 @@ class SendNotification extends Notification
     {
         return [
             'title' => $this->title,
-            'body' => $this->body
+            'body' => $this->body,
+            'category' => $this->category,
+            'target_id' => $this->targetId,
         ];
     }
 }
