@@ -36,9 +36,9 @@ class NotificationBadgeController extends Controller
             // 1. Unread Customer Requests (For Vendors)
             $customerRequestsCount = $unreadNotifications->filter(function ($item) {
                 $data = is_array($item->data) ? $item->data : (json_decode($item->data, true) ?? []);
-                $category = $data['category'] ?? '';
-                $title = $data['title'] ?? '';
-                $body = $data['body'] ?? '';
+                $category = (string)($data['category'] ?? '');
+                $title = (string)($data['title'] ?? '');
+                $body = (string)($data['body'] ?? '');
                 return $category === 'customer_requests' || str_contains($title, 'طلب') || str_contains($body, 'طلب');
             })->count();
 
@@ -49,9 +49,9 @@ class NotificationBadgeController extends Controller
             // 2. Unread Company Responses (For Customers)
             $companyResponsesCount = $unreadNotifications->filter(function ($item) {
                 $data = is_array($item->data) ? $item->data : (json_decode($item->data, true) ?? []);
-                $category = $data['category'] ?? '';
-                $title = $data['title'] ?? '';
-                $body = $data['body'] ?? '';
+                $category = (string)($data['category'] ?? '');
+                $title = (string)($data['title'] ?? '');
+                $body = (string)($data['body'] ?? '');
                 return $category === 'company_responses' || str_contains($title, 'رد') || str_contains($body, 'رد');
             })->count();
 
@@ -77,13 +77,13 @@ class NotificationBadgeController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'customer_requests' => $customerRequestsCount,
-                    'company_responses' => $companyResponsesCount,
-                    'conversations' => $conversationsCount,
+                    'customer_requests' => (int)$customerRequestsCount,
+                    'company_responses' => (int)$companyResponsesCount,
+                    'conversations' => (int)$conversationsCount,
                 ]
             ]);
         } catch (\Throwable $e) {
-            Log::error("[NotificationBadgeController] unreadCounts ERROR: " . $e->getMessage());
+            Log::error("[NotificationBadgeController] unreadCounts ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             return response()->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
