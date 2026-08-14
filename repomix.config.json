@@ -1,0 +1,27 @@
+{
+  "output": {
+    "filePath": "repomix-output.md",
+    "style": "markdown",
+    "headerText": "Car Mediator Platform Backend Codebase Summary",
+    "showLineNumbers": true
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "vendor/**",
+      "node_modules/**",
+      "storage/**",
+      "bootstrap/cache/**",
+      "public/storage/**",
+      "public/build/**",
+      "tests/**",
+      "database/factories/**",
+      "database/seeders/**",
+      "*.lock",
+      "*.log",
+      ".env*",
+      ".git/**"
+    ]
+  }
+}
