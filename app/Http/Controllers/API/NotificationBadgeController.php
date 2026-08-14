@@ -86,7 +86,7 @@ class NotificationBadgeController extends Controller
             Log::error("[NotificationBadgeController] unreadCounts ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
             ], 500);
         }
     }
@@ -127,10 +127,10 @@ class NotificationBadgeController extends Controller
 
             return $this->unreadCounts($request);
         } catch (\Throwable $e) {
-            Log::error("[NotificationBadgeController] markCategoryRead ERROR: " . $e->getMessage());
+            Log::error("[NotificationBadgeController] markCategoryRead ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
             ], 500);
         }
     }
