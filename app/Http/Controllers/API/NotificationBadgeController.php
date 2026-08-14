@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\MessageConversation;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class NotificationBadgeController extends Controller
@@ -104,9 +105,15 @@ class NotificationBadgeController extends Controller
             $category = $request->input('category');
             $userId = $user->id;
 
-            if ($category === 'customer_requests' || $category === 'company_responses') {
-                $user->unreadNotifications()->update(['read_at' => now()]);
-            } elseif ($category === 'conversations') {
+            // Direct DB update for notifications
+            DB::table('notifications')
+                ->where('notifiable_type', get_class($user))
+                ->where('notifiable_id', $userId)
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+
+            // Direct DB update for conversations messages
+            if ($category === 'conversations') {
                 $userConversationIds = Conversation::where('user_id', $userId)
                     ->orWhere('vendor_id', $userId)
                     ->pluck('id');
@@ -114,10 +121,8 @@ class NotificationBadgeController extends Controller
                 if ($userConversationIds->isNotEmpty()) {
                     MessageConversation::whereIn('conversation_id', $userConversationIds)
                         ->where('sender_id', '!=', $userId)
-                        ->update(['read' => true]);
+                        ->update(['read' => 1]);
                 }
-
-                $user->unreadNotifications()->update(['read_at' => now()]);
             }
 
             return $this->unreadCounts($request);
