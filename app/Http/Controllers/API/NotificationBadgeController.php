@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\MessageConversation;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 
 class NotificationBadgeController extends Controller
@@ -23,22 +24,36 @@ class NotificationBadgeController extends Controller
         }
 
         $userId = $user->id;
+        $isVendor = Vendor::where('user_id', $userId)->exists();
+
+        // Total unread DB notifications
+        $totalUnreadNotifications = $user->unreadNotifications()->count();
 
         // 1. Unread Customer Requests (For Vendors)
         $customerRequestsCount = $user->unreadNotifications()
             ->where(function ($query) {
                 $query->where('data->category', 'customer_requests')
-                    ->orWhere('type', 'like', '%new_request%');
+                    ->orWhere('data->title', 'like', '%طلب%')
+                    ->orWhere('data->body', 'like', '%طلب%');
             })
             ->count();
+
+        if ($customerRequestsCount === 0 && $isVendor && $totalUnreadNotifications > 0) {
+            $customerRequestsCount = $totalUnreadNotifications;
+        }
 
         // 2. Unread Company Responses (For Customers)
         $companyResponsesCount = $user->unreadNotifications()
             ->where(function ($query) {
                 $query->where('data->category', 'company_responses')
-                    ->orWhere('type', 'like', '%response%');
+                    ->orWhere('data->title', 'like', '%رد%')
+                    ->orWhere('data->body', 'like', '%رد%');
             })
             ->count();
+
+        if ($companyResponsesCount === 0 && !$isVendor && $totalUnreadNotifications > 0) {
+            $companyResponsesCount = $totalUnreadNotifications;
+        }
 
         // 3. Unread Conversations (For both Users & Vendors)
         $userConversationIds = Conversation::where('user_id', $userId)
@@ -47,7 +62,9 @@ class NotificationBadgeController extends Controller
 
         $conversationsCount = MessageConversation::whereIn('conversation_id', $userConversationIds)
             ->where('sender_id', '!=', $userId)
-            ->where('read', false)
+            ->where(function ($q) {
+                $q->where('read', false)->orWhereNull('read')->orWhere('read', 0);
+            })
             ->count();
 
         return response()->json([
@@ -74,12 +91,7 @@ class NotificationBadgeController extends Controller
         $userId = $user->id;
 
         if ($category === 'customer_requests' || $category === 'company_responses') {
-            $user->unreadNotifications()
-                ->where(function ($query) use ($category) {
-                    $query->where('data->category', $category)
-                        ->orWhere('type', 'like', '%' . ($category === 'customer_requests' ? 'new_request' : 'response') . '%');
-                })
-                ->update(['read_at' => now()]);
+            $user->unreadNotifications()->update(['read_at' => now()]);
         } elseif ($category === 'conversations') {
             $userConversationIds = Conversation::where('user_id', $userId)
                 ->orWhere('vendor_id', $userId)
@@ -87,8 +99,15 @@ class NotificationBadgeController extends Controller
 
             MessageConversation::whereIn('conversation_id', $userConversationIds)
                 ->where('sender_id', '!=', $userId)
-                ->where('read', false)
                 ->update(['read' => true]);
+
+            $user->unreadNotifications()
+                ->where(function ($query) {
+                    $query->where('data->category', 'conversations')
+                        ->orWhere('data->title', 'like', '%رسالة%')
+                        ->orWhere('data->body', 'like', '%رسالة%');
+                })
+                ->update(['read_at' => now()]);
         }
 
         return $this->unreadCounts($request);
