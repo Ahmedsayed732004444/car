@@ -17,6 +17,13 @@ class FcmNotificationUtils
     protected $click_action;
     protected $token;
     protected $topic;
+    protected $category;
+
+    public function setCategory($category)
+    {
+        $this->category = $category;
+        return $this;
+    }
 
     /**
      *Title of the notification.
@@ -112,6 +119,7 @@ class FcmNotificationUtils
             'click_action' => $this->click_action ?? 'FLUTTER_NOTIFICATION_CLICK',
             'status' => 'done',
             'type_notification' => 'all',
+            'category' => $this->category ?? 'conversations',
             'screen' => 'NotificationsScreen',
         ];
 
