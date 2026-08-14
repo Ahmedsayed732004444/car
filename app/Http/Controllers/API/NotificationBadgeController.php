@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class NotificationBadgeController extends Controller
 {
     /**
-     * Get unread notification counts grouped by section/category.
+     * Get unread notification counts grouped by section and per-entity.
      */
     public function unreadCounts(Request $request)
     {
@@ -65,13 +65,22 @@ class NotificationBadgeController extends Controller
                 ->pluck('id');
 
             $conversationsCount = 0;
+            $conversationEntityCounts = [];
+
             if ($userConversationIds->isNotEmpty()) {
-                $conversationsCount = MessageConversation::whereIn('conversation_id', $userConversationIds)
+                $rawCounts = MessageConversation::whereIn('conversation_id', $userConversationIds)
                     ->where('sender_id', '!=', $userId)
                     ->where(function ($q) {
                         $q->where('read', 0)->orWhere('read', false)->orWhereNull('read');
                     })
-                    ->count();
+                    ->select('conversation_id', DB::raw('count(*) as count'))
+                    ->groupBy('conversation_id')
+                    ->get();
+
+                foreach ($rawCounts as $row) {
+                    $conversationEntityCounts[(string)$row->conversation_id] = (int)$row->count;
+                    $conversationsCount += (int)$row->count;
+                }
             }
 
             return response()->json([
@@ -80,10 +89,57 @@ class NotificationBadgeController extends Controller
                     'customer_requests' => (int)$customerRequestsCount,
                     'company_responses' => (int)$companyResponsesCount,
                     'conversations' => (int)$conversationsCount,
+                    'sections' => [
+                        'customer_requests' => (int)$customerRequestsCount,
+                        'company_responses' => (int)$companyResponsesCount,
+                        'conversations' => (int)$conversationsCount,
+                    ],
+                    'entities' => [
+                        'conversations' => $conversationEntityCounts,
+                        'customer_requests' => new \stdClass(),
+                        'company_responses' => new \stdClass(),
+                    ]
                 ]
             ]);
         } catch (\Throwable $e) {
             Log::error("[NotificationBadgeController] unreadCounts ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark a specific entity (e.g. conversation_id) as read.
+     */
+    public function markEntityRead(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+            }
+
+            $section = $request->input('section');
+            $entityId = $request->input('entity_id');
+            $userId = $user->id;
+
+            if ($section === 'conversations' && $entityId) {
+                MessageConversation::where('conversation_id', $entityId)
+                    ->where('sender_id', '!=', $userId)
+                    ->update(['read' => 1]);
+            } elseif ($section === 'customer_requests' || $section === 'company_responses') {
+                DB::table('notifications')
+                    ->where('notifiable_type', get_class($user))
+                    ->where('notifiable_id', $userId)
+                    ->whereNull('read_at')
+                    ->update(['read_at' => now()]);
+            }
+
+            return $this->unreadCounts($request);
+        } catch (\Throwable $e) {
+            Log::error("[NotificationBadgeController] markEntityRead ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
             return response()->json([
                 'success' => false,
                 'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
