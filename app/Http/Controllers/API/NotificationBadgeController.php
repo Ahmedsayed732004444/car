@@ -69,6 +69,28 @@ class NotificationBadgeController extends Controller
                 $companyResponsesCount = $totalUnreadNotifications;
             }
 
+            // Fallback mapping for older notifications without explicit target_id
+            if ($isVendor && $customerRequestsCount > 0 && empty($customerRequestsEntityCounts)) {
+                $vendor = Vendor::where('user_id', $userId)->first();
+                if ($vendor) {
+                    $eligibleRequestIds = DB::table('request_eligible_vendors')
+                        ->where('vendor_id', $vendor->id)
+                        ->pluck('request_id');
+                    foreach ($eligibleRequestIds as $reqId) {
+                        $customerRequestsEntityCounts[(string)$reqId] = 1;
+                    }
+                }
+            }
+
+            if (!$isVendor && $companyResponsesCount > 0 && empty($companyResponsesEntityCounts)) {
+                $userRequestIds = DB::table('request_customers')
+                    ->where('user_id', $userId)
+                    ->pluck('id');
+                foreach ($userRequestIds as $reqId) {
+                    $companyResponsesEntityCounts[(string)$reqId] = 1;
+                }
+            }
+
             // 3. Unread Conversations (For both Users & Vendors)
             $userConversationIds = Conversation::where('user_id', $userId)
                 ->orWhere('vendor_id', $userId)
@@ -147,14 +169,22 @@ class NotificationBadgeController extends Controller
                         ->whereNull('read_at')
                         ->get();
 
+                    $foundSpecific = false;
                     foreach ($notifications as $notif) {
                         $data = json_decode($notif->data, true) ?? [];
                         $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
-                        if ($targetId === (string)$entityId || $targetId === '') {
+                        if ($targetId === (string)$entityId) {
                             DB::table('notifications')
                                 ->where('id', $notif->id)
                                 ->update(['read_at' => now()]);
+                            $foundSpecific = true;
                         }
+                    }
+
+                    if (!$foundSpecific && $notifications->isNotEmpty()) {
+                        DB::table('notifications')
+                            ->where('id', $notifications->first()->id)
+                            ->update(['read_at' => now()]);
                     }
                 } else {
                     DB::table('notifications')
