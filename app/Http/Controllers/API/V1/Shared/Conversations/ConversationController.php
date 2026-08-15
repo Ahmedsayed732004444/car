@@ -79,44 +79,36 @@ class ConversationController extends Controller
         $validator = Validator::make($request->all(), [
             'requestId' => 'required|exists:request_customers,id',
             'responseId' => 'required|integer',
-            'vendorId' => 'required|exists:users,id',
+            'vendorId' => 'required|integer',
         ]);
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
-        $userId = getCurrUserIdHelper();
-        $vendorId = Vendor::getUserIdByVendorId($request->vendorId);
+        $requestCustomer = \App\Models\RequestCustomer::find($request->requestId);
+        $customerUserId = $requestCustomer ? $requestCustomer->user_id : getCurrUserIdHelper();
+
+        $vendorUserId = Vendor::where('id', $request->vendorId)->value('user_id');
+        if (!$vendorUserId) {
+            $vendorUserId = $request->vendorId;
+        }
 
         // البحث عن محادثة موجودة أو إنشاء جديدة
-        $conversation = Conversation::where('vendor_id', $vendorId)
-            ->where('user_id', $userId)
+        $conversation = Conversation::where('vendor_id', $vendorUserId)
+            ->where('user_id', $customerUserId)
             ->where('request_id', $request->requestId)
             ->first();
 
         if (!$conversation) {
             $conversation = Conversation::create([
-                'vendor_id' => $vendorId,
-                'user_id' => $userId,
+                'vendor_id' => $vendorUserId,
+                'user_id' => $customerUserId,
                 'request_id' => $request->requestId,
                 'response_id' => $request->responseId,
             ]);
         }
 
-        // جلب البيانات المطلوبة باستخدام join
-        // $conversationWithDetails = Conversation::select([
-        //     'conversations.*',
-        //     'customer.name as customer_name',
-        //     'vendor.name as vendor_name',
-        //     'request_customers.id as request_id'
-        // ])
-        //     ->join('users as customer', 'conversations.user_id', '=', 'customer.id')
-        //     ->join('users as vendor', 'conversations.vendor_id', '=', 'vendor.id')
-        //     ->join('request_customers', 'conversations.request_id', '=', 'request_customers.id')
-        //     ->where('conversations.id', $conversation->id)
-        //     ->first();
-
-        return $conversation ? buildApiResponseHelper(true, 'تمت العملية بنجاح', ['conversationId' => $conversation->id]) : buildApiResponseHelper(false, 'حدث خطأ');
+        return $conversation ? buildApiResponseHelper(true, 'تمت العملية بنجاح', ['conversationId' => $conversation->id]) : buildApiResponseHelper(false, 'حدث خطأ');
     }
 }
