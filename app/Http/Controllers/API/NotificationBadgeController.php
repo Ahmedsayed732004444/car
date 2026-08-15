@@ -31,7 +31,6 @@ class NotificationBadgeController extends Controller
 
             // Fetch unread notifications collection safely
             $unreadNotifications = $user->unreadNotifications()->get();
-            $totalUnreadNotifications = $unreadNotifications->count();
 
             // 1. Unread Customer Requests (For Vendors)
             $customerRequestsCount = 0;
@@ -61,37 +60,7 @@ class NotificationBadgeController extends Controller
                 }
             }
 
-            if ($customerRequestsCount === 0 && $isVendor && $totalUnreadNotifications > 0) {
-                $customerRequestsCount = $totalUnreadNotifications;
-            }
-
-            if ($companyResponsesCount === 0 && !$isVendor && $totalUnreadNotifications > 0) {
-                $companyResponsesCount = $totalUnreadNotifications;
-            }
-
-            // Fallback mapping for older notifications without explicit target_id
-            if ($isVendor && $customerRequestsCount > 0 && empty($customerRequestsEntityCounts)) {
-                $vendor = Vendor::where('user_id', $userId)->first();
-                if ($vendor) {
-                    $eligibleRequestIds = DB::table('request_eligible_vendors')
-                        ->where('vendor_id', $vendor->id)
-                        ->pluck('request_id');
-                    foreach ($eligibleRequestIds as $reqId) {
-                        $customerRequestsEntityCounts[(string)$reqId] = 1;
-                    }
-                }
-            }
-
-            if (!$isVendor && $companyResponsesCount > 0 && empty($companyResponsesEntityCounts)) {
-                $userRequestIds = DB::table('request_customers')
-                    ->where('user_id', $userId)
-                    ->pluck('id');
-                foreach ($userRequestIds as $reqId) {
-                    $companyResponsesEntityCounts[(string)$reqId] = 1;
-                }
-            }
-
-            // Enforce exact synchronization: section total equals sum of entity breakdown
+            // Sync section count strictly with specific unread entity counts if present
             if (!empty($customerRequestsEntityCounts)) {
                 $customerRequestsCount = array_sum($customerRequestsEntityCounts);
             }

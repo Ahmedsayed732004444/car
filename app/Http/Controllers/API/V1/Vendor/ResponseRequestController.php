@@ -41,7 +41,16 @@ class ResponseRequestController extends Controller
 
             DB::commit();
 
-            $this->notifyByID($requestResponse->user_id, 'رد جديد', 'تم الرد على طلبك من ' . ' ' . $requestResponse->company_name_ar);
+            // Pass category 'company_responses' and targetId = $request->requestId
+            $this->notifyByID(
+                $requestResponse->user_id,
+                'رد جديد',
+                'تم الرد على طلبك من ' . ' ' . $requestResponse->company_name_ar,
+                true,
+                'company_responses',
+                $request->requestId
+            );
+
             return buildApiResponseHelper(true, 'تم ارسال الرد بنجاح');
         } catch (\Exception $e) {
             report($e);
