@@ -14,6 +14,8 @@ class RequestRepository
 {
     private function queryFilterEligibleVendors($categoryId, $citiesIdsScope, $brandId)
     {
+        $brandIdList = is_string($brandId) ? (json_decode($brandId, true) ?? $brandId) : $brandId;
+
         return Vendor::joinUsers()
             ->joinVendorSpecialties()
             ->joinVendorCities()
@@ -21,12 +23,14 @@ class RequestRepository
             ->whereCategoryVendorSpecialty($categoryId)
             ->whereInVendorCities($citiesIdsScope)
             ->isActive()
-            ->when($brandId, function ($query) use ($brandId) {
-                $query->where(function ($q) use ($brandId) {
+            ->when(!empty($brandIdList), function ($query) use ($brandIdList) {
+                $query->where(function ($q) use ($brandIdList) {
                     $q->where('vendor_specialties.is_receive_all_brand_cars', true);
 
-                    if (!empty($brandId)) {
-                        $q->orWhere('vendor_brand_cars.brand_car_id', $brandId);
+                    if (is_array($brandIdList)) {
+                        $q->orWhereIn('vendor_brand_cars.brand_car_id', $brandIdList);
+                    } else {
+                        $q->orWhere('vendor_brand_cars.brand_car_id', $brandIdList);
                     }
                 });
             })
@@ -52,12 +56,15 @@ class RequestRepository
         return RequestCustomer::create($data);
     }
 
-    public function createRequestBrandScope(int $requestId, int $brandId): RequestBrandScope
+    public function createRequestBrandScope(int $requestId, $brandId): RequestBrandScope
     {
+        $brandIdList = is_string($brandId) ? (json_decode($brandId, true) ?? $brandId) : $brandId;
+        $brandArray = is_array($brandIdList) ? array_map('intval', $brandIdList) : [(int)$brandIdList];
+
         return RequestBrandScope::create([
             'request_id' => $requestId,
             'brand_type' => 'brand_cars',
-            'brand_ids_scope' => [$brandId],
+            'brand_ids_scope' => $brandArray,
         ]);
     }
 
