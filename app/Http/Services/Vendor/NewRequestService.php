@@ -27,15 +27,18 @@ class NewRequestService extends BaseService
             'requestId' => 'required|integer',
         ]);
 
-        $result = $this->newRequestRepo->detailsRequestEligibleVendor($request->requestId);
+        $resultModel = $this->newRequestRepo->detailsRequestEligibleVendor((int) $request->requestId);
 
-        if (!$result)
+        if (!$resultModel) {
             return buildApiResponseHelper(false, 'الطلب غير موجود');
+        }
 
-        $result['brandsNames'] = $this->newRequestRepo->getRequestBrandNamesScope($request->requestId);
-        $result['cities'] = $this->newRequestRepo->getRequestCitiesNamesScope($result->cities);
-        $result['customFields'] = $this->newRequestRepo->getRequestCustomFields($request->requestId);
-        $result['requestImages'] = $this->newRequestRepo->getRequestImages($request->requestId);
+        $result = $resultModel->toArray();
+
+        $result['brandsNames'] = $this->newRequestRepo->getRequestBrandNamesScope((int) $request->requestId);
+        $result['cities'] = $this->newRequestRepo->getRequestCitiesNamesScope($result['cities'] ?? null);
+        $result['customFields'] = $this->newRequestRepo->getRequestCustomFields((int) $request->requestId);
+        $result['requestImages'] = $this->newRequestRepo->getRequestImages((int) $request->requestId);
 
         return buildApiResponseHelper(true, 'تم جلب البيانات بنجاح', $result);
     }

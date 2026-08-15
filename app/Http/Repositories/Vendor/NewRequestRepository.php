@@ -58,11 +58,23 @@ class NewRequestRepository
     public function getRequestBrandNamesScope($requestId)
     {
         $brandIdsScope = RequestBrandScope::where('request_id', $requestId)->first(['brand_ids_scope']);
-        $BrandCarsCached =  BrandCar::getBrandCarsCached();
+        if (!$brandIdsScope || empty($brandIdsScope->brand_ids_scope)) {
+            return [];
+        }
+
+        $BrandCarsCached = BrandCar::getBrandCarsCached();
+        $brandScopeList = is_array($brandIdsScope->brand_ids_scope) ? $brandIdsScope->brand_ids_scope : json_decode($brandIdsScope->brand_ids_scope, true);
+
+        if (!is_array($brandScopeList)) {
+            return [];
+        }
 
         $brandsNames = [];
-        foreach ($brandIdsScope->brand_ids_scope as $brand) {
-            $brandsNames[] = $BrandCarsCached->where('id', (int) $brand)->value('brand_name_ar') ?? '';
+        foreach ($brandScopeList as $brand) {
+            $name = $BrandCarsCached->where('id', (int) $brand)->value('brand_name_ar');
+            if ($name) {
+                $brandsNames[] = $name;
+            }
         }
 
         return $brandsNames;
@@ -70,11 +82,23 @@ class NewRequestRepository
 
     public function getRequestCitiesNamesScope($cityIdsScope)
     {
-        $citiesCached =  City::getCitiesCached();
+        if (empty($cityIdsScope)) {
+            return [];
+        }
+
+        $citiesCached = City::getCitiesCached();
+        $cityList = is_array($cityIdsScope) ? $cityIdsScope : json_decode($cityIdsScope, true);
+
+        if (!is_array($cityList)) {
+            return [];
+        }
 
         $citiesNames = [];
-        foreach (json_decode($cityIdsScope) as $city) {
-            $citiesNames[] = $citiesCached->where('id', (int) $city)->value('city_name_ar') ?? '';
+        foreach ($cityList as $city) {
+            $name = $citiesCached->where('id', (int) $city)->value('city_name_ar');
+            if ($name) {
+                $citiesNames[] = $name;
+            }
         }
 
         return $citiesNames;
@@ -89,7 +113,7 @@ class NewRequestRepository
         foreach ($requestCustomFields as $item) {
             $temp = [];
             $temp['key'] = $customFieldsCached->where('id', $item->custom_field_id)->value('label_ar') ?? '';
-            $temp['value'] = json_decode($item->value);
+            $temp['value'] = is_string($item->value) ? (json_decode($item->value, true) ?? $item->value) : $item->value;
             array_push($result, $temp);
         }
 

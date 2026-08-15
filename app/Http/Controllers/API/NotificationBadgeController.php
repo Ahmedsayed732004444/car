@@ -91,6 +91,14 @@ class NotificationBadgeController extends Controller
                 }
             }
 
+            // Enforce exact synchronization: section total equals sum of entity breakdown
+            if (!empty($customerRequestsEntityCounts)) {
+                $customerRequestsCount = array_sum($customerRequestsEntityCounts);
+            }
+            if (!empty($companyResponsesEntityCounts)) {
+                $companyResponsesCount = array_sum($companyResponsesEntityCounts);
+            }
+
             // 3. Unread Conversations (For both Users & Vendors)
             $userConversationIds = Conversation::where('user_id', $userId)
                 ->orWhere('vendor_id', $userId)
