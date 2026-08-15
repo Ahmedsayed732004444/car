@@ -47,15 +47,15 @@ class NotificationBadgeController extends Controller
                 $body = (string)($data['body'] ?? '');
                 $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
 
-                if ($category === 'customer_requests' || str_contains($title, 'طلب') || str_contains($body, 'طلب')) {
-                    $customerRequestsCount++;
-                    if ($targetId !== '') {
-                        $customerRequestsEntityCounts[$targetId] = ($customerRequestsEntityCounts[$targetId] ?? 0) + 1;
-                    }
-                } elseif ($category === 'company_responses' || str_contains($title, 'رد') || str_contains($body, 'رد')) {
+                if ($category === 'company_responses' || str_contains($title, 'رد') || str_contains($body, 'الرد')) {
                     $companyResponsesCount++;
                     if ($targetId !== '') {
                         $companyResponsesEntityCounts[$targetId] = ($companyResponsesEntityCounts[$targetId] ?? 0) + 1;
+                    }
+                } elseif ($category === 'customer_requests' || str_contains($title, 'طلب جديد') || str_contains($body, 'طلب جديد')) {
+                    $customerRequestsCount++;
+                    if ($targetId !== '') {
+                        $customerRequestsEntityCounts[$targetId] = ($customerRequestsEntityCounts[$targetId] ?? 0) + 1;
                     }
                 }
             }
