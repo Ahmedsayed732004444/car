@@ -20,11 +20,18 @@ class ConfirmOrderRequest extends FormRequest
     // prepare the data for validation.
     protected function prepareForValidation(): void
     {
+        $brandId = $this->brandId;
+        if (is_string($brandId) && str_starts_with(trim($brandId), '[')) {
+            $brandId = json_decode($brandId, true);
+        } elseif (is_numeric($brandId)) {
+            $brandId = (int) $brandId;
+        }
+
         $this->merge([
             'categoryId' => (int) $this->categoryId,
             'customerCityId' => (int) $this->customerCityId,
-            'citiesIdsScope' => json_decode($this->citiesIdsScope),
-            'brandId' => (int) $this->brandId,
+            'citiesIdsScope' => is_string($this->citiesIdsScope) ? json_decode($this->citiesIdsScope, true) : $this->citiesIdsScope,
+            'brandId' => $brandId,
         ]);
     }
 
@@ -36,7 +43,7 @@ class ConfirmOrderRequest extends FormRequest
             'description'       => ['required', 'string', 'max:4000'],
             'citiesIdsScope' => 'required|array|min:1',
             'citiesIdsScope.*' => ['required', 'integer'],
-            'brandId' => ['nullable', 'integer', new RequiredBrandIfCategoryHasBrandRule],
+            'brandId' => ['nullable', new RequiredBrandIfCategoryHasBrandRule],
             'images' => 'nullable|array|max:20',
             'images.*' => 'image|mimes:png,jpg,jpeg,gif,webp|max:5000',
             'customFields' => [

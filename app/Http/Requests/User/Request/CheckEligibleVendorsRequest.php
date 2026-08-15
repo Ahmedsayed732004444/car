@@ -14,13 +14,24 @@ class CheckEligibleVendorsRequest extends FormRequest
         return auth('sanctum')->check();
     }
 
+    protected function prepareForValidation(): void
+    {
+        $brandId = $this->input('brandId');
+        if (is_string($brandId) && str_starts_with(trim($brandId), '[')) {
+            $brandId = json_decode($brandId, true);
+        }
+        $this->merge([
+            'brandId' => $brandId,
+        ]);
+    }
+
     public function rules(): array
     {
         return [
             'categoryId' => 'required|integer|exists:categories,id',
             'citiesIdsScope' => 'required|array|min:1',
             'citiesIdsScope.*' => ['required', 'integer'],
-            'brandId' => ['nullable', 'integer', new RequiredBrandIfCategoryHasBrandRule],
+            'brandId' => ['nullable', new RequiredBrandIfCategoryHasBrandRule],
         ];
     }
 

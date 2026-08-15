@@ -19,8 +19,8 @@ class RequiredBrandIfCategoryHasBrandRule implements ValidationRule
         $isHasBrand = CategoryHasBrandField::where('category_id', $categoryId)->exists();
 
         if ($isHasBrand) {
-            if (empty($value)) {
-                $fail('الرجاء إدخال الماركة');
+            if (empty($value) || (is_array($value) && count($value) === 0)) {
+                $fail('الرجاء اختيار الموديل / الماركة');
             }
         }
     }
