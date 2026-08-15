@@ -58,16 +58,23 @@ class ConversationController extends Controller
     public function getVendorConversations(Request $request)
     {
         $userId = getCurrUserIdHelper();
+        $vendorId = Vendor::where('user_id', $userId)->value('id');
+
         $conversations = Conversation::join('users', 'conversations.user_id', '=', 'users.id')
-            ->where('conversations.vendor_id', $userId)
-            ->select(
+            ->where(function ($query) use ($userId, $vendorId) {
+                $query->where('conversations.vendor_id', $userId);
+                if ($vendorId) {
+                    $query->orWhere('conversations.vendor_id', $vendorId);
+                }
+            })
+            ->select([
                 'conversations.id',
                 'conversations.request_id',
                 'conversations.response_id',
                 'conversations.vendor_id',
                 'users.name as receiver_name',
                 'users.logo as receiver_logo',
-            )
+            ])
             ->orderBy('conversations.id', 'desc')
             ->paginate(10);
 
@@ -89,15 +96,16 @@ class ConversationController extends Controller
         $requestCustomer = \App\Models\RequestCustomer::find($request->requestId);
         $customerUserId = $requestCustomer ? $requestCustomer->user_id : getCurrUserIdHelper();
 
-        $vendorUserId = Vendor::where('id', $request->vendorId)->value('user_id');
-        if (!$vendorUserId) {
-            $vendorUserId = $request->vendorId;
-        }
+        $rawVendorId = $request->vendorId;
+        $vendorUserId = Vendor::where('id', $rawVendorId)->value('user_id') ?: $rawVendorId;
 
-        // البحث عن محادثة موجودة أو إنشاء جديدة
-        $conversation = Conversation::where('vendor_id', $vendorUserId)
-            ->where('user_id', $customerUserId)
-            ->where('request_id', $request->requestId)
+        // البحث عن أي محادثة سابقة مرنبطة بنفي الطلب وتوحيدها
+        $conversation = Conversation::where('request_id', $request->requestId)
+            ->where(function ($q) use ($vendorUserId, $rawVendorId) {
+                $q->where('vendor_id', $vendorUserId)
+                  ->orWhere('vendor_id', $rawVendorId);
+            })
+            ->latest('id')
             ->first();
 
         if (!$conversation) {
@@ -106,6 +114,11 @@ class ConversationController extends Controller
                 'user_id' => $customerUserId,
                 'request_id' => $request->requestId,
                 'response_id' => $request->responseId,
+            ]);
+        } else {
+            $conversation->update([
+                'vendor_id' => $vendorUserId,
+                'user_id' => $customerUserId,
             ]);
         }
 
