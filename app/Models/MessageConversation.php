@@ -30,7 +30,7 @@ class MessageConversation extends Model
         return Attribute::make(
             get: fn($value) =>
             $value
-                ? Carbon::parse($value)->setTimezone(config('app.user_timezone'))->format('h:i a')
+                ? Carbon::parse($value)->setTimezone(config('app.timezone', 'Asia/Riyadh'))->format('h:i a')
                 : null
         );
     }
