@@ -23,15 +23,6 @@ class ConversationController extends Controller
             Vendor::whereNotNull('user_id')->where('user_id', '>', 0)->get()->each(function ($v) {
                 Conversation::where('vendor_id', $v->id)->update(['vendor_id' => $v->user_id]);
             });
-
-            Conversation::where('vendor_id', 0)->orWhereNull('vendor_id')->get()->each(function ($c) {
-                $vId = \App\Models\RequestResponse::where('request_id', $c->request_id)->value('vendor_id');
-                $vUserId = Vendor::where('id', $vId)->value('user_id') ?: $vId;
-                if (!$vUserId || $vUserId == 0) {
-                    $vUserId = 3;
-                }
-                $c->update(['vendor_id' => $vUserId]);
-            });
         } catch (\Throwable $e) {
         }
     }
@@ -109,14 +100,21 @@ class ConversationController extends Controller
 
         $requestCustomer = RequestCustomer::find($request->requestId);
         $rawVendorId = $request->vendorId;
+
+        // Dynamic vendor resolution from response record if vendorId is 0
         if (!$rawVendorId || $rawVendorId == 0) {
-            $rawVendorId = getCurrVendorIdHelper() ?: getCurrUserIdHelper();
+            if ($request->responseId) {
+                $rawVendorId = \App\Models\RequestResponse::where('id', $request->responseId)->value('vendor_id');
+            }
+            if (!$rawVendorId) {
+                $rawVendorId = \App\Models\RequestResponse::where('request_id', $request->requestId)->value('vendor_id');
+            }
+            if (!$rawVendorId) {
+                $rawVendorId = getCurrVendorIdHelper() ?: getCurrUserIdHelper();
+            }
         }
 
         $vendorUserId = Vendor::where('id', $rawVendorId)->value('user_id') ?: $rawVendorId;
-        if (!$vendorUserId || $vendorUserId == 0) {
-            $vendorUserId = getCurrUserIdHelper() ?: 3;
-        }
         $vendorTableId = Vendor::where('user_id', $vendorUserId)->value('id') ?: $rawVendorId;
 
         $currentUserId = getCurrUserIdHelper();
@@ -124,7 +122,7 @@ class ConversationController extends Controller
         if ($requestCustomer && $requestCustomer->user_id) {
             $customerUserId = $requestCustomer->user_id;
         } else {
-            $customerUserId = ($currentUserId != $vendorUserId && $currentUserId != $vendorTableId) ? $currentUserId : 1;
+            $customerUserId = ($currentUserId != $vendorUserId && $currentUserId != $vendorTableId) ? $currentUserId : 0;
         }
 
         // البحث عن أي محادثة سابقة مرتبطة بنفس الطلب وتحديثها
