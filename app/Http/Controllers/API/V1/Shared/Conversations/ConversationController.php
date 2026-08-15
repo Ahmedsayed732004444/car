@@ -37,7 +37,8 @@ class ConversationController extends Controller
                 ->orOn('vendors.id', '=', 'conversations.vendor_id');
         })
             ->leftJoin('users as vendor_user', function ($join) {
-                $join->on('vendor_user.id', '=', DB::raw('COALESCE(vendors.user_id, conversations.vendor_id)'));
+                $join->on('vendor_user.id', '=', 'vendors.user_id')
+                    ->orOn('vendor_user.id', '=', 'conversations.vendor_id');
             })
             ->where('conversations.user_id', $userId)
             ->select([
