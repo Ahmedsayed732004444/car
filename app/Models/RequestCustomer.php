@@ -19,8 +19,6 @@ class RequestCustomer extends Model
         'customer_latitude',
         'customer_longitude',
         'description',
-        'part_name',
-        'car_name',
         'cities_ids_scope',
         'status',
     ];

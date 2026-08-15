@@ -41,8 +41,6 @@ class ConfirmOrderRequest extends FormRequest
             'categoryId'       => ['required', 'integer', 'exists:categories,id'],
             'customerCityId'  => ['required', 'integer'],
             'description'       => ['required', 'string', 'max:4000'],
-            'partName'          => ['nullable', 'string', 'max:255'],
-            'carName'           => ['nullable', 'string', 'max:255'],
             'citiesIdsScope' => 'required|array|min:1',
             'citiesIdsScope.*' => ['required', 'integer'],
             'brandId' => ['nullable', new RequiredBrandIfCategoryHasBrandRule],

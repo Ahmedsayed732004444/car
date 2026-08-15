@@ -110,16 +110,6 @@ class NewRequestRepository
         $customFieldsCached = CustomField::getCustomFieldsCached();
 
         $result = [];
-        $reqCustomer = \App\Models\RequestCustomer::find($requestId);
-        if ($reqCustomer) {
-            if (!empty($reqCustomer->part_name)) {
-                $result[] = ['key' => 'اسم القطعة', 'value' => $reqCustomer->part_name];
-            }
-            if (!empty($reqCustomer->car_name)) {
-                $result[] = ['key' => 'اسم السيارة', 'value' => $reqCustomer->car_name];
-            }
-        }
-
         foreach ($requestCustomFields as $item) {
             $temp = [];
             $temp['key'] = $customFieldsCached->where('id', $item->custom_field_id)->value('label_ar') ?? '';

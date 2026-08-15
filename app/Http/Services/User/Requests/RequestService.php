@@ -47,8 +47,6 @@ class RequestService
             'category_id' => $request->categoryId,
             'customer_city_id' => $request->customerCityId,
             'description' => $request->description,
-            'part_name' => $request->partName,
-            'car_name' => $request->carName,
             'cities_ids_scope' => $request->citiesIdsScope,
         ]);
     }
@@ -58,12 +56,37 @@ class RequestService
         $fieldsRequest = json_decode($request->customFields, true);
 
         if (is_array($fieldsRequest)) {
-
             $customFieldsList = (new CustomFieldRepository())->getCustomFieldsByCategoryId($request->categoryId);
 
-            foreach ($customFieldsList as $item) {
-                $customField = $fieldsRequest[$item->field_name] ?? '';
-                if ($item->field_type != CustomFieldTypeEnum::File->value && !empty($customField)) {
+            foreach ($fieldsRequest as $fieldName => $customField) {
+                if (empty($customField)) continue;
+
+                $item = $customFieldsList->where('field_name', $fieldName)->first();
+
+                if (!$item) {
+                    $labelAr = match ($fieldName) {
+                        'car_name' => 'اسم السيارة',
+                        'part_name' => 'اسم القطعة',
+                        default => $fieldName,
+                    };
+                    $labelEn = match ($fieldName) {
+                        'car_name' => 'Car Name',
+                        'part_name' => 'Part Name',
+                        default => $fieldName,
+                    };
+
+                    $item = \App\Models\CustomField::updateOrCreate(
+                        ['category_id' => $request->categoryId, 'field_name' => $fieldName],
+                        [
+                            'label_ar' => $labelAr,
+                            'label_en' => $labelEn,
+                            'field_type' => CustomFieldTypeEnum::Text->value,
+                            'is_required' => false,
+                        ]
+                    );
+                }
+
+                if ($item && $item->field_type != CustomFieldTypeEnum::File->value) {
                     $this->requestRepo->createRequestCustomFieldValues([
                         'request_id' => $requestCustomerId,
                         'custom_field_id' => $item->id,
