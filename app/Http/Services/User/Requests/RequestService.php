@@ -47,6 +47,8 @@ class RequestService
             'category_id' => $request->categoryId,
             'customer_city_id' => $request->customerCityId,
             'description' => $request->description,
+            'part_name' => $request->partName,
+            'car_name' => $request->carName,
             'cities_ids_scope' => $request->citiesIdsScope,
         ]);
     }
