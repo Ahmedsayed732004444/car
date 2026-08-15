@@ -100,20 +100,6 @@ class ConversationController extends Controller
 
         $requestCustomer = RequestCustomer::find($request->requestId);
         $rawVendorId = $request->vendorId;
-
-        // Dynamic vendor resolution from response record if vendorId is 0
-        if (!$rawVendorId || $rawVendorId == 0) {
-            if ($request->responseId) {
-                $rawVendorId = \App\Models\RequestResponse::where('id', $request->responseId)->value('vendor_id');
-            }
-            if (!$rawVendorId) {
-                $rawVendorId = \App\Models\RequestResponse::where('request_id', $request->requestId)->value('vendor_id');
-            }
-            if (!$rawVendorId) {
-                $rawVendorId = getCurrVendorIdHelper() ?: getCurrUserIdHelper();
-            }
-        }
-
         $vendorUserId = Vendor::where('id', $rawVendorId)->value('user_id') ?: $rawVendorId;
         $vendorTableId = Vendor::where('user_id', $vendorUserId)->value('id') ?: $rawVendorId;
 

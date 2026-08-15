@@ -18,7 +18,6 @@ class ResponseRequestRepository
             ->select(
                 'request_responses.id as response_id',
                 'request_customers.id as request_id',
-                'request_responses.vendor_id as vendor_id',
                 'categories.cat_name_ar',
                 'request_customers.created_at as request_date',
                 'cities.city_name_ar as city_customer_name_ar',
