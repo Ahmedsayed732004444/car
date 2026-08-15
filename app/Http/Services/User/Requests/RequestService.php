@@ -67,11 +67,13 @@ class RequestService
                     $labelAr = match ($fieldName) {
                         'car_name' => 'اسم السيارة',
                         'part_name' => 'اسم القطعة',
+                        'budget' => 'الميزانه',
                         default => $fieldName,
                     };
                     $labelEn = match ($fieldName) {
                         'car_name' => 'Car Name',
                         'part_name' => 'Part Name',
+                        'budget' => 'Budget',
                         default => $fieldName,
                     };
 
