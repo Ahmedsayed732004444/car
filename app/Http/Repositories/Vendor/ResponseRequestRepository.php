@@ -13,6 +13,7 @@ class ResponseRequestRepository
         return RequestResponse::joinRequestCustomer()
             ->leftJoinCategoryToRequest()
             ->leftJoinCityCustomerToRequest()
+            ->leftJoinUserToRequest()
             ->where('request_responses.vendor_id', getCurrVendorIdHelper())
             ->select(
                 'request_responses.id as response_id',
@@ -25,6 +26,8 @@ class ResponseRequestRepository
                 'request_responses.status as response_status',
                 'request_responses.created_at as response_date',
                 'request_responses.price as price_response',
+                'users.name as user_name',
+                'users.logo as user_logo',
             )
             ->orderBy('request_responses.id', 'desc')
             ->paginate(10);
