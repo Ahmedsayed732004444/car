@@ -65,8 +65,8 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
-    'user_timezone' => env('APP_USER_TIMEZONE', 'UTC'),
+    'timezone' => env('APP_TIMEZONE', 'Asia/Riyadh'),
+    'user_timezone' => env('APP_USER_TIMEZONE', 'Asia/Riyadh'),
 
     /*
     |--------------------------------------------------------------------------
