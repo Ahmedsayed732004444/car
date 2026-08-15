@@ -19,23 +19,23 @@ trait NotificationsTrait
         }
     }
 
-    public function notifyRequestToEligibleVendors($vendors)
+    public function notifyRequestToEligibleVendors($vendors, $requestId = null)
     {
         foreach ($vendors as $vendor) {
             $user = User::where('id', $vendor->user_id)->first(['id', 'fcm_token']);
             if ($user) {
-                $user->notify(new SendNotification(title: 'طلب جديد', body: 'تم اضافة طلب جديد', category: 'customer_requests'));
+                $user->notify(new SendNotification(title: 'طلب جديد', body: 'تم اضافة طلب جديد', category: 'customer_requests', targetId: $requestId));
                 (new FcmNotificationUtils())->setTitle('طلب جديد')->setBody('تم اضافة طلب جديد')->setCategory('customer_requests')->setToken($user->fcm_token)->send();
             }
         }
     }
 
-    public function notifyByID($userId, $title, $body, $notifyDB = true, $category = 'conversations')
+    public function notifyByID($userId, $title, $body, $notifyDB = true, $category = 'conversations', $targetId = null)
     {
         $user = User::where('id', $userId)->first(['id', 'fcm_token']);
         if ($user) {
             if ($notifyDB) {
-                $user->notify(new SendNotification(title: $title, body: $body, category: $category));
+                $user->notify(new SendNotification(title: $title, body: $body, category: $category, targetId: $targetId));
             }
             (new FcmNotificationUtils())->setTitle($title)->setBody($body)->setCategory($category)->setToken($user->fcm_token)->send();
         }

@@ -34,26 +34,36 @@ class NotificationBadgeController extends Controller
             $totalUnreadNotifications = $unreadNotifications->count();
 
             // 1. Unread Customer Requests (For Vendors)
-            $customerRequestsCount = $unreadNotifications->filter(function ($item) {
+            $customerRequestsCount = 0;
+            $customerRequestsEntityCounts = [];
+
+            // 2. Unread Company Responses (For Customers)
+            $companyResponsesCount = 0;
+            $companyResponsesEntityCounts = [];
+
+            foreach ($unreadNotifications as $item) {
                 $data = is_array($item->data) ? $item->data : (json_decode($item->data, true) ?? []);
                 $category = (string)($data['category'] ?? '');
                 $title = (string)($data['title'] ?? '');
                 $body = (string)($data['body'] ?? '');
-                return $category === 'customer_requests' || str_contains($title, 'طلب') || str_contains($body, 'طلب');
-            })->count();
+                $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
+
+                if ($category === 'customer_requests' || str_contains($title, 'طلب') || str_contains($body, 'طلب')) {
+                    $customerRequestsCount++;
+                    if ($targetId !== '') {
+                        $customerRequestsEntityCounts[$targetId] = ($customerRequestsEntityCounts[$targetId] ?? 0) + 1;
+                    }
+                } elseif ($category === 'company_responses' || str_contains($title, 'رد') || str_contains($body, 'رد')) {
+                    $companyResponsesCount++;
+                    if ($targetId !== '') {
+                        $companyResponsesEntityCounts[$targetId] = ($companyResponsesEntityCounts[$targetId] ?? 0) + 1;
+                    }
+                }
+            }
 
             if ($customerRequestsCount === 0 && $isVendor && $totalUnreadNotifications > 0) {
                 $customerRequestsCount = $totalUnreadNotifications;
             }
-
-            // 2. Unread Company Responses (For Customers)
-            $companyResponsesCount = $unreadNotifications->filter(function ($item) {
-                $data = is_array($item->data) ? $item->data : (json_decode($item->data, true) ?? []);
-                $category = (string)($data['category'] ?? '');
-                $title = (string)($data['title'] ?? '');
-                $body = (string)($data['body'] ?? '');
-                return $category === 'company_responses' || str_contains($title, 'رد') || str_contains($body, 'رد');
-            })->count();
 
             if ($companyResponsesCount === 0 && !$isVendor && $totalUnreadNotifications > 0) {
                 $companyResponsesCount = $totalUnreadNotifications;
@@ -96,8 +106,8 @@ class NotificationBadgeController extends Controller
                     ],
                     'entities' => [
                         'conversations' => $conversationEntityCounts,
-                        'customer_requests' => new \stdClass(),
-                        'company_responses' => new \stdClass(),
+                        'customer_requests' => $customerRequestsEntityCounts,
+                        'company_responses' => $companyResponsesEntityCounts,
                     ]
                 ]
             ]);
@@ -111,7 +121,7 @@ class NotificationBadgeController extends Controller
     }
 
     /**
-     * Mark a specific entity (e.g. conversation_id) as read.
+     * Mark a specific entity (e.g. conversation_id or request_id) as read.
      */
     public function markEntityRead(Request $request)
     {
@@ -130,11 +140,29 @@ class NotificationBadgeController extends Controller
                     ->where('sender_id', '!=', $userId)
                     ->update(['read' => 1]);
             } elseif ($section === 'customer_requests' || $section === 'company_responses') {
-                DB::table('notifications')
-                    ->where('notifiable_type', get_class($user))
-                    ->where('notifiable_id', $userId)
-                    ->whereNull('read_at')
-                    ->update(['read_at' => now()]);
+                if ($entityId) {
+                    $notifications = DB::table('notifications')
+                        ->where('notifiable_type', get_class($user))
+                        ->where('notifiable_id', $userId)
+                        ->whereNull('read_at')
+                        ->get();
+
+                    foreach ($notifications as $notif) {
+                        $data = json_decode($notif->data, true) ?? [];
+                        $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
+                        if ($targetId === (string)$entityId || $targetId === '') {
+                            DB::table('notifications')
+                                ->where('id', $notif->id)
+                                ->update(['read_at' => now()]);
+                        }
+                    }
+                } else {
+                    DB::table('notifications')
+                        ->where('notifiable_type', get_class($user))
+                        ->where('notifiable_id', $userId)
+                        ->whereNull('read_at')
+                        ->update(['read_at' => now()]);
+                }
             }
 
             return $this->unreadCounts($request);
