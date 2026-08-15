@@ -8,47 +8,35 @@ use App\Models\MessageConversation;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class ConversationController extends Controller
 {
     public function index()
     {
-        // $user = currUserHelper();
-
-        // // استخدام join query لجلب البيانات ذات الصلة في استعلام واحد
-        // $conversations = Conversation::select([
-        //     'conversations.*',
-        //     'customer.name as customer_name',
-        //     'vendor.name as vendor_name',
-        //     'request_customers.id as request_id'
-        // ])
-        //     ->join('users as customer', 'conversations.user_id', '=', 'customer.id')
-        //     ->join('users as vendor', 'conversations.vendor_id', '=', 'vendor.id')
-        //     ->join('request_customers', 'conversations.request_id', '=', 'request_customers.id')
-        //     ->where(function ($query) use ($user) {
-        //         $query->where('conversations.user_id', $user->id)
-        //             ->orWhere('conversations.vendor_id', $user->id);
-        //     })
-        //     ->get();
-
-
-
-        // return buildApiResponseHelper(true, 'تم التحميل بنجاح', $conversations);
     }
 
     public function getUserConversations(Request $request)
     {
         $userId = getCurrUserIdHelper();
-        $conversations = Conversation::join('users', 'conversations.vendor_id', '=', 'users.id')
+        $conversations = Conversation::leftJoin('vendors', function($join) {
+                $join->on('conversations.vendor_id', '=', 'vendors.id')
+                     ->orOn('conversations.vendor_id', '=', 'vendors.user_id');
+            })
+            ->leftJoin('users', function($join) {
+                $join->on('users.id', '=', 'conversations.vendor_id')
+                     ->orOn('users.id', '=', 'vendors.user_id');
+            })
             ->where('conversations.user_id', $userId)
-            ->select(
+            ->select([
                 'conversations.id',
                 'conversations.request_id',
                 'conversations.response_id',
                 'conversations.vendor_id',
-                'users.name as receiver_name',
+                DB::raw('COALESCE(NULLIF(vendors.company_name_ar, ""), users.name, "التاجر") as receiver_name'),
                 'users.logo as receiver_logo',
-            )
+            ])
+            ->distinct()
             ->orderBy('conversations.id', 'desc')
             ->paginate(10);
 
@@ -58,13 +46,13 @@ class ConversationController extends Controller
     public function getVendorConversations(Request $request)
     {
         $userId = getCurrUserIdHelper();
-        $vendorId = Vendor::where('user_id', $userId)->value('id');
+        $vendorTableId = Vendor::where('user_id', $userId)->value('id');
 
         $conversations = Conversation::join('users', 'conversations.user_id', '=', 'users.id')
-            ->where(function ($query) use ($userId, $vendorId) {
+            ->where(function ($query) use ($userId, $vendorTableId) {
                 $query->where('conversations.vendor_id', $userId);
-                if ($vendorId) {
-                    $query->orWhere('conversations.vendor_id', $vendorId);
+                if ($vendorTableId) {
+                    $query->orWhere('conversations.vendor_id', $vendorTableId);
                 }
             })
             ->select([
@@ -84,8 +72,8 @@ class ConversationController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'requestId' => 'required|exists:request_customers,id',
-            'responseId' => 'required|integer',
+            'requestId' => 'required|integer',
+            'responseId' => 'nullable|integer',
             'vendorId' => 'required|integer',
         ]);
 
@@ -98,11 +86,13 @@ class ConversationController extends Controller
 
         $rawVendorId = $request->vendorId;
         $vendorUserId = Vendor::where('id', $rawVendorId)->value('user_id') ?: $rawVendorId;
+        $vendorTableId = Vendor::where('user_id', $vendorUserId)->value('id') ?: $rawVendorId;
 
-        // البحث عن أي محادثة سابقة مرنبطة بنفي الطلب وتوحيدها
+        // البحث عن أي محادثة سابقة مرتبطة بنفس الطلب وتوحيدها
         $conversation = Conversation::where('request_id', $request->requestId)
-            ->where(function ($q) use ($vendorUserId, $rawVendorId) {
+            ->where(function ($q) use ($vendorUserId, $vendorTableId, $rawVendorId) {
                 $q->where('vendor_id', $vendorUserId)
+                  ->orWhere('vendor_id', $vendorTableId)
                   ->orWhere('vendor_id', $rawVendorId);
             })
             ->latest('id')
@@ -113,7 +103,7 @@ class ConversationController extends Controller
                 'vendor_id' => $vendorUserId,
                 'user_id' => $customerUserId,
                 'request_id' => $request->requestId,
-                'response_id' => $request->responseId,
+                'response_id' => $request->responseId ?? 0,
             ]);
         } else {
             $conversation->update([
