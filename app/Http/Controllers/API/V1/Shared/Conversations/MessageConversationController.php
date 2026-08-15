@@ -22,18 +22,17 @@ class MessageConversationController extends Controller
     {
         $lastId = $request->query('last_message_id', 0);
 
-        $messages = MessageConversation::join('users', 'users.id', '=', 'message_conversations.sender_id')
-            ->where('message_conversations.conversation_id', $conversationId)
-            ->where('message_conversations.id', '>', $lastId)
+        $messages = MessageConversation::where('conversation_id', $conversationId)
+            ->where('id', '>', $lastId)
             ->select(
-                'message_conversations.id',
-                'message_conversations.sender_id',
-                'message_conversations.body',
-                'message_conversations.image',
-                'message_conversations.is_shipping_request',
-                'message_conversations.created_at as date_sent',
+                'id',
+                'sender_id',
+                'body',
+                'image',
+                'is_shipping_request',
+                'created_at as date_sent',
             )
-            ->orderBy('message_conversations.id', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
 
         return buildApiResponseHelper(true, 'تم ارسال الرسالة بنجاح', $messages);
