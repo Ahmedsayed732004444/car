@@ -28,12 +28,21 @@ class ProfileVendorService
             'is_hide_phone_contact' => $request->isHidePhoneContact,
         ], $userId);
 
-        $filesName = UploadUtils::uploadMultipleImageToPublic($request->images);
+        $images = $request->file('images') ?: $request->file('image');
+        if ($images) {
+            if (!is_array($images)) {
+                $images = [$images];
+            }
+            $filesName = UploadUtils::uploadMultipleImageToPublic($images);
+            if (!empty($filesName)) {
+                $this->profileVendorRepository->updateLogoVendor($filesName, $userId);
+            }
+        }
 
-        $this->profileVendorRepository->updateLogoVendor($filesName, $userId);
-
+        $logo = currUserHelper()?->logo;
         return [
-            'logo' => currUserHelper()->logo ?? '',
+            'logo' => $logo ?? '',
+            'logo_url' => $logo ? asset('uploads/' . $logo) : '',
         ];
     }
 

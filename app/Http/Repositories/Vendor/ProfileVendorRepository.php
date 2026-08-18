@@ -10,7 +10,7 @@ class ProfileVendorRepository
 {
     public function getVendor()
     {
-        return Vendor::join('users', 'users.id', '=', 'vendors.user_id')
+        $vendor = Vendor::join('users', 'users.id', '=', 'vendors.user_id')
             ->where('vendors.user_id', getCurrUserIdHelper())
             ->select(
                 'users.logo',
@@ -22,6 +22,12 @@ class ProfileVendorRepository
                 'vendors.is_hide_phone_contact',
             )
             ->first();
+
+        if ($vendor) {
+            $vendor->logo_url = $vendor->logo ? asset('uploads/' . $vendor->logo) : null;
+        }
+
+        return $vendor;
     }
 
     public function updateVendor(array $data, $userId)
