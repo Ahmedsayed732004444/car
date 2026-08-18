@@ -136,7 +136,7 @@ class MyRequestUserRepository
                 'request_responses.price as price_response',
                 'request_responses.warranty as warranty_response',
                 'vendors.company_name_ar',
-                \Illuminate\Support\Facades\DB::raw('COALESCE(NULLIF(vendors.logo, ""), NULLIF(users.logo, ""), "") as vendor_logo'),
+                'users.logo as vendor_logo',
                 'shipping_requests.id as shipping_request_id',
                 'shipping_requests.status as shipping_request_status',
             )
@@ -163,7 +163,7 @@ class MyRequestUserRepository
                 'vendors.company_name_ar',
                 'vendors.phone_contact',
                 'vendors.is_hide_phone_contact',
-                \Illuminate\Support\Facades\DB::raw('COALESCE(NULLIF(vendors.logo, ""), NULLIF(users.logo, ""), "") as vendor_logo'),
+                'users.logo as vendor_logo',
                 'users.created_at as vendor_member_since',
             )
             ->first();
