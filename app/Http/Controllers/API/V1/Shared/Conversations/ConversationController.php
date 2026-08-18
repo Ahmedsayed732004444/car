@@ -46,8 +46,8 @@ class ConversationController extends Controller
                 'conversations.request_id',
                 'conversations.response_id',
                 'conversations.vendor_id',
-                DB::raw('COALESCE(NULLIF(NULLIF(vendors.company_name_ar, "التاجر"), ""), vendor_user.name, "التاجر") as receiver_name'),
-                DB::raw('MAX(vendor_user.logo) as receiver_logo'),
+                DB::raw('COALESCE(NULLIF(vendors.company_name_ar, "التاجر"), vendor_user.name, "التاجر") as receiver_name'),
+                DB::raw('COALESCE(NULLIF(vendors.logo, ""), MAX(vendor_user.logo), "") as receiver_logo'),
             ])
             ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id', 'vendors.company_name_ar', 'vendor_user.name')
             ->orderBy('id', 'desc')
