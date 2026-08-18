@@ -31,22 +31,17 @@ class ConversationController extends Controller
     {
         $userId = getCurrUserIdHelper();
 
-        $conversations = Conversation::leftJoin('vendors', function ($join) {
-                $join->on('vendors.user_id', '=', 'conversations.vendor_id')
-                    ->orOn('vendors.id', '=', 'conversations.vendor_id');
-            })
-            ->leftJoin('users as vendor_user', function ($join) {
-                $join->on('vendor_user.id', '=', 'vendors.user_id')
-                    ->orOn('vendor_user.id', '=', 'conversations.vendor_id');
-            })
+        $conversations = Conversation::leftJoin('vendors', 'conversations.vendor_id', '=', 'vendors.id')
+            ->leftJoin('users as vendor_user', 'vendors.user_id', '=', 'vendor_user.id')
+            ->leftJoin('users as direct_vendor_user', 'conversations.vendor_id', '=', 'direct_vendor_user.id')
             ->where('conversations.user_id', $userId)
             ->select([
                 'conversations.id',
                 'conversations.request_id',
                 'conversations.response_id',
                 'conversations.vendor_id',
-                DB::raw('COALESCE(NULLIF(vendors.company_name_ar, "التاجر"), vendor_user.name, "التاجر") as receiver_name'),
-                DB::raw('COALESCE(NULLIF(vendors.logo, ""), vendor_user.logo, "") as receiver_logo'),
+                DB::raw('COALESCE(NULLIF(vendors.company_name_ar, "التاجر"), vendor_user.name, direct_vendor_user.name, "التاجر") as receiver_name'),
+                DB::raw('COALESCE(NULLIF(vendors.logo, ""), vendor_user.logo, direct_vendor_user.logo, "") as receiver_logo'),
             ])
             ->orderBy('conversations.id', 'desc')
             ->paginate(10);
