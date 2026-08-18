@@ -32,44 +32,26 @@ class ConversationController extends Controller
         $this->fixVendorConversationIds();
         $userId = getCurrUserIdHelper();
 
-        $rawConversations = Conversation::where('user_id', $userId)
-            ->latest('id')
-            ->get()
-            ->unique('request_id');
-
-        $conversationIds = $rawConversations->pluck('id')->toArray();
-
-        $conversations = Conversation::whereIn('id', $conversationIds)
+        $conversations = Conversation::leftJoin('vendors', function ($join) {
+            $join->on('vendors.user_id', '=', 'conversations.vendor_id')
+                ->orOn('vendors.id', '=', 'conversations.vendor_id');
+        })
+            ->leftJoin('users as vendor_user', function ($join) {
+                $join->on('vendor_user.id', '=', 'vendors.user_id')
+                    ->orOn('vendor_user.id', '=', 'conversations.vendor_id');
+            })
+            ->where('conversations.user_id', $userId)
+            ->select([
+                DB::raw('MAX(conversations.id) as id'),
+                'conversations.request_id',
+                'conversations.response_id',
+                'conversations.vendor_id',
+                DB::raw('COALESCE(NULLIF(NULLIF(vendors.company_name_ar, "التاجر"), ""), vendor_user.name, "التاجر") as receiver_name'),
+                DB::raw('MAX(vendor_user.logo) as receiver_logo'),
+            ])
+            ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id', 'vendors.company_name_ar', 'vendor_user.name')
             ->orderBy('id', 'desc')
             ->paginate(10);
-
-        $conversations->getCollection()->transform(function ($item) {
-            $vendor = Vendor::where('user_id', $item->vendor_id)
-                ->orWhere('id', $item->vendor_id)
-                ->first();
-
-            $vendorUser = null;
-            if ($vendor && $vendor->user_id) {
-                $vendorUser = \App\Models\User::find($vendor->user_id);
-            }
-            if (!$vendorUser) {
-                $vendorUser = \App\Models\User::find($item->vendor_id);
-            }
-
-            $name = null;
-            if ($vendor && !empty($vendor->company_name_ar) && $vendor->company_name_ar !== 'التاجر') {
-                $name = $vendor->company_name_ar;
-            } elseif ($vendorUser && !empty($vendorUser->name) && $vendorUser->name !== 'التاجر') {
-                $name = $vendorUser->name;
-            }
-
-            $logo = $vendorUser?->logo ?: ($vendor?->logo ?: null);
-
-            $item->receiver_name = $name ?: 'التاجر';
-            $item->receiver_logo = $logo;
-
-            return $item;
-        });
 
         return buildApiResponseHelper(true, 'تم التحميل بنجاح', resultApiPaginationHelper($conversations));
     }
@@ -80,32 +62,24 @@ class ConversationController extends Controller
         $userId = getCurrUserIdHelper();
         $vendorTableId = Vendor::where('user_id', $userId)->value('id');
 
-        $rawConversations = Conversation::where(function ($query) use ($userId, $vendorTableId) {
-                $query->where('vendor_id', $userId);
+        $conversations = Conversation::leftJoin('users as customer_user', 'conversations.user_id', '=', 'customer_user.id')
+            ->where(function ($query) use ($userId, $vendorTableId) {
+                $query->where('conversations.vendor_id', $userId);
                 if ($vendorTableId) {
-                    $query->orWhere('vendor_id', $vendorTableId);
+                    $query->orWhere('conversations.vendor_id', $vendorTableId);
                 }
             })
-            ->latest('id')
-            ->get()
-            ->unique('request_id');
-
-        $conversationIds = $rawConversations->pluck('id')->toArray();
-
-        $conversations = Conversation::whereIn('id', $conversationIds)
+            ->select([
+                DB::raw('MAX(conversations.id) as id'),
+                'conversations.request_id',
+                'conversations.response_id',
+                'conversations.vendor_id',
+                DB::raw('COALESCE(NULLIF(NULLIF(customer_user.name, "التاجر"), ""), "العميل") as receiver_name'),
+                DB::raw('MAX(customer_user.logo) as receiver_logo'),
+            ])
+            ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id', 'customer_user.name')
             ->orderBy('id', 'desc')
             ->paginate(10);
-
-        $conversations->getCollection()->transform(function ($item) {
-            $customerUser = \App\Models\User::find($item->user_id);
-
-            $item->receiver_name = ($customerUser && !empty($customerUser->name) && $customerUser->name !== 'التاجر') 
-                ? $customerUser->name 
-                : 'العميل';
-            $item->receiver_logo = $customerUser?->logo;
-
-            return $item;
-        });
 
         return buildApiResponseHelper(true, 'تم التحميل بنجاح', resultApiPaginationHelper($conversations));
     }

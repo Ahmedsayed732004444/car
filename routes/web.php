@@ -10,34 +10,6 @@ Route::get('/', function () {
 Route::get('/dashboard', [App\Http\Controllers\Dashboard\DashboardController::class, 'index'])
     ->middleware(['auth:admin', 'role:Super-Admin|admin', 'verified'])->name('dashboard');
 
-Route::get('/uploads/{filename}', function ($filename) {
-    $path = public_path('uploads/' . $filename);
-    if (!file_exists($path)) {
-        $path = storage_path('app/public/uploads/' . $filename);
-    }
-    if (!file_exists($path)) {
-        $path = storage_path('app/public/' . $filename);
-    }
-
-    if (file_exists($path)) {
-        $mimeType = mime_content_type($path) ?: 'image/jpeg';
-        return response()->file($path, ['Content-Type' => $mimeType]);
-    }
-
-    // Fallback to default logo if file was lost during Railway container redeployment
-    $defaultLogo = public_path('assets/images/logo.png');
-    if (!file_exists($defaultLogo)) {
-        $defaultLogo = public_path('favicon.ico');
-    }
-
-    if (file_exists($defaultLogo)) {
-        $mimeType = mime_content_type($defaultLogo) ?: 'image/png';
-        return response()->file($defaultLogo, ['Content-Type' => $mimeType]);
-    }
-
-    abort(404);
-})->where('filename', '.*');
-
 Route::prefix('uploads-private')->middleware('auth:admin')->controller(App\Http\Controllers\FileController::class)->group(function () {
     Route::get('/{filename}', 'getSensitiveImage')->name('uploads-private');
 });
