@@ -23,8 +23,15 @@ class ProfileVendorRepository
             )
             ->first();
 
-        if ($vendor) {
-            $vendor->logo_url = $vendor->logo ? asset('uploads/' . $vendor->logo) : null;
+        if ($vendor && $vendor->logo) {
+            if (str_starts_with($vendor->logo, 'http://') || str_starts_with($vendor->logo, 'https://')) {
+                $vendor->logo_url = $vendor->logo;
+            } else {
+                $cleanLogo = str_replace('uploads/', '', $vendor->logo);
+                $vendor->logo_url = asset('uploads/' . $cleanLogo);
+            }
+        } else if ($vendor) {
+            $vendor->logo_url = null;
         }
 
         return $vendor;
