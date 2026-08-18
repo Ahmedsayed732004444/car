@@ -92,12 +92,25 @@ class UploadUtils
         try {
             $imagePaths = [];
             if ($files) {
+                $destinationPath = public_path('uploads');
+                if (!file_exists($destinationPath)) {
+                    @mkdir($destinationPath, 0777, true);
+                }
+
                 foreach ($files as $file) {
-                    if (!$file->isValid()) continue;
+                    if (!$file || !$file->isValid()) continue;
 
-                    $fileName = self::GenerateRandomName() . '.' . $file->getClientOriginalExtension();
+                    $fileName = self::generateRandomName() . '.' . $file->getClientOriginalExtension();
 
-                    $file->move(public_path('uploads'), $fileName);
+                    try {
+                        $file->move($destinationPath, $fileName);
+                    } catch (\Throwable $e) {
+                        $altPath = storage_path('app/public/uploads');
+                        if (!file_exists($altPath)) {
+                            @mkdir($altPath, 0777, true);
+                        }
+                        $file->move($altPath, $fileName);
+                    }
 
                     $imagePaths[] = $fileName;
                 }
