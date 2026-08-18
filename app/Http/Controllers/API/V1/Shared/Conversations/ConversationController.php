@@ -29,50 +29,67 @@ class ConversationController extends Controller
 
     public function getUserConversations(Request $request)
     {
-        $userId = getCurrUserIdHelper();
+        try {
+            $userId = getCurrUserIdHelper();
+            if (!$userId) {
+                return buildApiResponseHelper(false, 'غير مصرح بالوصول', null, 401);
+            }
 
-        $conversations = Conversation::leftJoin('vendors', 'conversations.vendor_id', '=', 'vendors.id')
-            ->leftJoin('users as vendor_user', 'vendors.user_id', '=', 'vendor_user.id')
-            ->leftJoin('users as direct_vendor_user', 'conversations.vendor_id', '=', 'direct_vendor_user.id')
-            ->where('conversations.user_id', $userId)
-            ->select([
-                'conversations.id',
-                'conversations.request_id',
-                'conversations.response_id',
-                'conversations.vendor_id',
-                DB::raw('COALESCE(NULLIF(vendors.company_name_ar, "التاجر"), vendor_user.name, direct_vendor_user.name, "التاجر") as receiver_name'),
-                DB::raw('COALESCE(NULLIF(vendors.logo, ""), vendor_user.logo, direct_vendor_user.logo, "") as receiver_logo'),
-            ])
-            ->orderBy('conversations.id', 'desc')
-            ->paginate(10);
+            $conversations = Conversation::leftJoin('vendors', 'conversations.vendor_id', '=', 'vendors.id')
+                ->leftJoin('users as vendor_user', 'vendors.user_id', '=', 'vendor_user.id')
+                ->leftJoin('users as direct_vendor_user', 'conversations.vendor_id', '=', 'direct_vendor_user.id')
+                ->where('conversations.user_id', $userId)
+                ->select([
+                    'conversations.id',
+                    'conversations.request_id',
+                    'conversations.response_id',
+                    'conversations.vendor_id',
+                    DB::raw('COALESCE(NULLIF(vendors.company_name_ar, "التاجر"), vendor_user.name, direct_vendor_user.name, "التاجر") as receiver_name'),
+                    DB::raw('COALESCE(NULLIF(vendors.logo, ""), vendor_user.logo, direct_vendor_user.logo, "") as receiver_logo'),
+                ])
+                ->orderBy('conversations.id', 'desc')
+                ->paginate(10);
 
-        return buildApiResponseHelper(true, 'تم التحميل بنجاح', resultApiPaginationHelper($conversations));
+            return buildApiResponseHelper(true, 'تم التحميل بنجاح', resultApiPaginationHelper($conversations));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('getUserConversations Exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            return buildApiResponseHelper(false, 'حدث خطأ أثناء تحميل المحادثات: ' . $e->getMessage());
+        }
     }
 
     public function getVendorConversations(Request $request)
     {
-        $userId = getCurrUserIdHelper();
-        $vendorTableId = Vendor::where('user_id', $userId)->value('id');
+        try {
+            $userId = getCurrUserIdHelper();
+            if (!$userId) {
+                return buildApiResponseHelper(false, 'غير مصرح بالوصول', null, 401);
+            }
 
-        $conversations = Conversation::leftJoin('users as customer_user', 'conversations.user_id', '=', 'customer_user.id')
-            ->where(function ($query) use ($userId, $vendorTableId) {
-                $query->where('conversations.vendor_id', $userId);
-                if ($vendorTableId) {
-                    $query->orWhere('conversations.vendor_id', $vendorTableId);
-                }
-            })
-            ->select([
-                'conversations.id',
-                'conversations.request_id',
-                'conversations.response_id',
-                'conversations.vendor_id',
-                DB::raw('COALESCE(NULLIF(NULLIF(customer_user.name, "التاجر"), ""), "العميل") as receiver_name'),
-                DB::raw('COALESCE(customer_user.logo, "") as receiver_logo'),
-            ])
-            ->orderBy('conversations.id', 'desc')
-            ->paginate(10);
+            $vendorTableId = Vendor::where('user_id', $userId)->value('id');
 
-        return buildApiResponseHelper(true, 'تم التحميل بنجاح', resultApiPaginationHelper($conversations));
+            $conversations = Conversation::leftJoin('users as customer_user', 'conversations.user_id', '=', 'customer_user.id')
+                ->where(function ($query) use ($userId, $vendorTableId) {
+                    $query->where('conversations.vendor_id', $userId);
+                    if ($vendorTableId) {
+                        $query->orWhere('conversations.vendor_id', $vendorTableId);
+                    }
+                })
+                ->select([
+                    'conversations.id',
+                    'conversations.request_id',
+                    'conversations.response_id',
+                    'conversations.vendor_id',
+                    DB::raw('COALESCE(NULLIF(NULLIF(customer_user.name, "التاجر"), ""), "العميل") as receiver_name'),
+                    DB::raw('COALESCE(customer_user.logo, "") as receiver_logo'),
+                ])
+                ->orderBy('conversations.id', 'desc')
+                ->paginate(10);
+
+            return buildApiResponseHelper(true, 'تم التحميل بنجاح', resultApiPaginationHelper($conversations));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('getVendorConversations Exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            return buildApiResponseHelper(false, 'حدث خطأ أثناء تحميل المحادثات: ' . $e->getMessage());
+        }
     }
 
     public function store(Request $request)
