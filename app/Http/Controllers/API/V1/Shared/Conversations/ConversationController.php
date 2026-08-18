@@ -29,28 +29,26 @@ class ConversationController extends Controller
 
     public function getUserConversations(Request $request)
     {
-        $this->fixVendorConversationIds();
         $userId = getCurrUserIdHelper();
 
         $conversations = Conversation::leftJoin('vendors', function ($join) {
-            $join->on('vendors.user_id', '=', 'conversations.vendor_id')
-                ->orOn('vendors.id', '=', 'conversations.vendor_id');
-        })
+                $join->on('vendors.user_id', '=', 'conversations.vendor_id')
+                    ->orOn('vendors.id', '=', 'conversations.vendor_id');
+            })
             ->leftJoin('users as vendor_user', function ($join) {
                 $join->on('vendor_user.id', '=', 'vendors.user_id')
                     ->orOn('vendor_user.id', '=', 'conversations.vendor_id');
             })
             ->where('conversations.user_id', $userId)
             ->select([
-                DB::raw('MAX(conversations.id) as id'),
+                'conversations.id',
                 'conversations.request_id',
                 'conversations.response_id',
                 'conversations.vendor_id',
-                DB::raw('COALESCE(NULLIF(MAX(vendors.company_name_ar), "التاجر"), MAX(vendor_user.name), "التاجر") as receiver_name'),
-                DB::raw('COALESCE(NULLIF(MAX(vendors.logo), ""), MAX(vendor_user.logo), "") as receiver_logo'),
+                DB::raw('COALESCE(NULLIF(vendors.company_name_ar, "التاجر"), vendor_user.name, "التاجر") as receiver_name'),
+                DB::raw('COALESCE(NULLIF(vendors.logo, ""), vendor_user.logo, "") as receiver_logo'),
             ])
-            ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id')
-            ->orderBy('id', 'desc')
+            ->orderBy('conversations.id', 'desc')
             ->paginate(10);
 
         return buildApiResponseHelper(true, 'تم التحميل بنجاح', resultApiPaginationHelper($conversations));
@@ -58,7 +56,6 @@ class ConversationController extends Controller
 
     public function getVendorConversations(Request $request)
     {
-        $this->fixVendorConversationIds();
         $userId = getCurrUserIdHelper();
         $vendorTableId = Vendor::where('user_id', $userId)->value('id');
 
@@ -70,15 +67,14 @@ class ConversationController extends Controller
                 }
             })
             ->select([
-                DB::raw('MAX(conversations.id) as id'),
+                'conversations.id',
                 'conversations.request_id',
                 'conversations.response_id',
                 'conversations.vendor_id',
-                DB::raw('COALESCE(NULLIF(NULLIF(MAX(customer_user.name), "التاجر"), ""), "العميل") as receiver_name'),
-                DB::raw('COALESCE(MAX(customer_user.logo), "") as receiver_logo'),
+                DB::raw('COALESCE(NULLIF(NULLIF(customer_user.name, "التاجر"), ""), "العميل") as receiver_name'),
+                DB::raw('COALESCE(customer_user.logo, "") as receiver_logo'),
             ])
-            ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id')
-            ->orderBy('id', 'desc')
+            ->orderBy('conversations.id', 'desc')
             ->paginate(10);
 
         return buildApiResponseHelper(true, 'تم التحميل بنجاح', resultApiPaginationHelper($conversations));
