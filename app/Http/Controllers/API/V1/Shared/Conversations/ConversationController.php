@@ -46,10 +46,10 @@ class ConversationController extends Controller
                 'conversations.request_id',
                 'conversations.response_id',
                 'conversations.vendor_id',
-                DB::raw('COALESCE(NULLIF(vendors.company_name_ar, "التاجر"), vendor_user.name, "التاجر") as receiver_name'),
-                DB::raw('COALESCE(NULLIF(vendors.logo, ""), MAX(vendor_user.logo), "") as receiver_logo'),
+                DB::raw('COALESCE(NULLIF(MAX(vendors.company_name_ar), "التاجر"), MAX(vendor_user.name), "التاجر") as receiver_name'),
+                DB::raw('COALESCE(NULLIF(MAX(vendors.logo), ""), MAX(vendor_user.logo), "") as receiver_logo'),
             ])
-            ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id', 'vendors.company_name_ar', 'vendor_user.name')
+            ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id')
             ->orderBy('id', 'desc')
             ->paginate(10);
 
@@ -74,10 +74,10 @@ class ConversationController extends Controller
                 'conversations.request_id',
                 'conversations.response_id',
                 'conversations.vendor_id',
-                DB::raw('COALESCE(NULLIF(NULLIF(customer_user.name, "التاجر"), ""), "العميل") as receiver_name'),
-                DB::raw('MAX(customer_user.logo) as receiver_logo'),
+                DB::raw('COALESCE(NULLIF(NULLIF(MAX(customer_user.name), "التاجر"), ""), "العميل") as receiver_name'),
+                DB::raw('COALESCE(MAX(customer_user.logo), "") as receiver_logo'),
             ])
-            ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id', 'customer_user.name')
+            ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id')
             ->orderBy('id', 'desc')
             ->paginate(10);
 
