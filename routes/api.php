@@ -55,6 +55,9 @@ Route::prefix('v1')->group(function () {
         ]);
         
         \App\Models\CacheStaticDataVersion::where('entity_name', 'categories')->update(['last_updated_at' => now()]);
+        \App\Models\CacheStaticDataVersion::where('entity_name', 'category_has_brand_field')->update(['last_updated_at' => now()]);
+        
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
         
         return response()->json(['success' => true]);
     });
