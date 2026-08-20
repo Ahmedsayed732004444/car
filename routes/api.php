@@ -47,4 +47,12 @@ Route::middleware('auth:sanctum')->controller(App\Http\Controllers\FileControlle
 
 Route::prefix('v1')->group(function () {
     Route::post('/cache/check-updates', [CacheStaticDataVersionController::class, 'checkUpdates']);
+    
+    Route::get('/update-cat', function () {
+        \App\Models\Category::where('cat_name_en', 'New Cars')->update([
+            'cat_name_ar' => 'سيارات مستعملة',
+            'cat_name_en' => 'Used Cars'
+        ]);
+        return response()->json(['success' => true]);
+    });
 });
