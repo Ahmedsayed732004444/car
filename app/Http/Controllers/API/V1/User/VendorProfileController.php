@@ -24,6 +24,7 @@ class VendorProfileController extends Controller
                 'vendors.description',
                 'vendors.rating',
                 'users.logo',
+                'users.created_at',
             ])->first();
 
         if (!$vendor) {
@@ -53,6 +54,7 @@ class VendorProfileController extends Controller
                 'rating' => (float) $vendor->rating,
                 'logo' => $vendor->logo,
                 'total_reviews' => $reviews->total(),
+                'member_since' => $vendor->created_at ? $vendor->created_at->format('Y-m-d') : null,
             ],
             'reviews' => resultApiPaginationHelper($reviews)
         ];
