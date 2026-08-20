@@ -29,8 +29,11 @@ Route::middleware(['auth:sanctum', 'role:user'])->group(function () {
         Route::post('/update', 'updateUserProfile');
     });
 
+});
+
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('/vendor-profiles')->controller(App\Http\Controllers\API\V1\User\VendorProfileController::class)->group(function () {
         Route::get('/{vendorId}', 'show');
-        Route::post('/{vendorId}/rate', 'storeReview');
+        Route::post('/{vendorId}/rate', 'storeReview')->middleware('role:user');
     });
 });
