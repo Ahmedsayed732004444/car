@@ -50,22 +50,11 @@ Route::prefix('v1')->group(function () {
     
     Route::get('/update-cat', function () {
         \App\Models\Category::where('id', 2)->update([
-            'cat_name_ar' => 'قطع غيار مستعملة',
-            'cat_name_en' => 'Used Spare Parts'
+            'cat_name_ar' => 'قطع غيار تشليح',
+            'cat_name_en' => 'Scrap Spare Parts'
         ]);
-        
-        \App\Models\Category::where('id', 3)->update([
-            'cat_name_ar' => 'قطع غيار جديدة',
-            'cat_name_en' => 'New Spare Parts',
-            'cat_icon_path' => 'spare-parts-icon.png',
-            'commission_type' => \App\Enums\CommissionTypeEnum::Rate->value,
-            'commission' => 0.01
-        ]);
-        
-        \App\Models\CategoryHasBrandField::updateOrCreate(['category_id' => 3]);
         
         \App\Models\CacheStaticDataVersion::where('entity_name', 'categories')->update(['last_updated_at' => now()]);
-        \App\Models\CacheStaticDataVersion::where('entity_name', 'category_has_brand_field')->update(['last_updated_at' => now()]);
         
         return response()->json(['success' => true]);
     });
