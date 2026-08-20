@@ -53,6 +53,9 @@ Route::prefix('v1')->group(function () {
             'cat_name_ar' => 'سيارات مستعملة',
             'cat_name_en' => 'Used Cars'
         ]);
+        
+        \App\Models\CacheStaticDataVersion::where('table_name', 'categories')->increment('version');
+        
         return response()->json(['success' => true]);
     });
 });
