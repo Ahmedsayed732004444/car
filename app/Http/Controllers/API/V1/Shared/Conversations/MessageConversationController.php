@@ -87,7 +87,21 @@ class MessageConversationController extends Controller
                 $messagesNotify =  'طلب شحن جديد من الطلب رقم' . ' ( ' . $request->requestId . ' )';
             }
 
-            $this->notifyByID(userId: $receiverId, title: $messagesNotify, body: $request->body, notifyDB: false);
+            $this->notifyByID(
+                userId: $receiverId,
+                title: $messagesNotify,
+                body: $request->body,
+                notifyDB: false,
+                category: 'conversations',
+                extraData: [
+                    'conversation_id' => (string) $request->conversationId,
+                    'message_id' => (string) $created->id,
+                    'sender_id' => (string) $userId,
+                    'body' => (string) ($request->body ?? ''),
+                    'image' => (string) ($fileName ?? ''),
+                    'is_shipping_request' => $request->isSendShippingRequest ? '1' : '0',
+                ]
+            );
         }
 
         return buildApiResponseHelper(true, 'تم ارسال الرسالة بنجاح');

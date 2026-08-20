@@ -18,6 +18,13 @@ class FcmNotificationUtils
     protected $token;
     protected $topic;
     protected $category;
+    protected $extraData = [];
+
+    public function setExtraData(array $extraData)
+    {
+        $this->extraData = $extraData;
+        return $this;
+    }
 
     public function setCategory($category)
     {
@@ -115,13 +122,13 @@ class FcmNotificationUtils
 
     private function prepareSend()
     {
-        $dataArr = [
+        $dataArr = array_merge([
             'click_action' => $this->click_action ?? 'FLUTTER_NOTIFICATION_CLICK',
             'status' => 'done',
             'type_notification' => 'all',
             'category' => $this->category ?? 'conversations',
             'screen' => 'NotificationsScreen',
-        ];
+        ], $this->extraData ?? []);
 
         if (isset($this->topic)) {
             $json = [

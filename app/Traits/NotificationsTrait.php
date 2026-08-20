@@ -30,14 +30,20 @@ trait NotificationsTrait
         }
     }
 
-    public function notifyByID($userId, $title, $body, $notifyDB = true, $category = 'conversations', $targetId = null)
+    public function notifyByID($userId, $title, $body, $notifyDB = true, $category = 'conversations', $targetId = null, array $extraData = [])
     {
         $user = User::where('id', $userId)->first(['id', 'fcm_token']);
         if ($user) {
             if ($notifyDB) {
                 $user->notify(new SendNotification(title: $title, body: $body, category: $category, targetId: $targetId));
             }
-            (new FcmNotificationUtils())->setTitle($title)->setBody($body)->setCategory($category)->setToken($user->fcm_token)->send();
+            (new FcmNotificationUtils())
+                ->setTitle($title)
+                ->setBody($body)
+                ->setCategory($category)
+                ->setExtraData($extraData)
+                ->setToken($user->fcm_token)
+                ->send();
         }
     }
 
