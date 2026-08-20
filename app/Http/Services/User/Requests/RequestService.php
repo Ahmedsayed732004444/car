@@ -68,12 +68,16 @@ class RequestService
                         'car_name' => 'اسم السيارة',
                         'part_name' => 'اسم القطعة',
                         'budget' => 'الميزانه',
+                        'chassis_number' => 'رقم الهيكل',
+                        'confirm_chassis_number' => 'تأكيد رقم الهيكل',
                         default => $fieldName,
                     };
                     $labelEn = match ($fieldName) {
                         'car_name' => 'Car Name',
                         'part_name' => 'Part Name',
                         'budget' => 'Budget',
+                        'chassis_number' => 'Chassis Number',
+                        'confirm_chassis_number' => 'Confirm Chassis Number',
                         default => $fieldName,
                     };
 
