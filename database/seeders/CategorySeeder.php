@@ -16,8 +16,8 @@ class CategorySeeder extends Seeder
     {
         $categoriesList = [
             ['cat_name_ar' => 'سيارات مستعملة', 'cat_name_en' => 'Used Cars', 'cat_icon_path' => 'new-cars-icon.png', 'commission_type' => CommissionTypeEnum::Amount->value, 'commission' => 300],
-            ['cat_name_ar' => 'قطع غيار', 'cat_name_en' => 'Spare Parts', 'cat_icon_path' => 'spare-parts-icon.png', 'commission_type' => CommissionTypeEnum::Rate->value, 'commission' => 0.01],
-            ['cat_name_ar' => 'شاحنات', 'cat_name_en' => 'Trucks', 'cat_icon_path' => 'trucks-icon.png', 'commission_type' => CommissionTypeEnum::Amount->value, 'commission' => 300],
+            ['cat_name_ar' => 'قطع غيار مستعملة', 'cat_name_en' => 'Used Spare Parts', 'cat_icon_path' => 'spare-parts-icon.png', 'commission_type' => CommissionTypeEnum::Rate->value, 'commission' => 0.01],
+            ['cat_name_ar' => 'قطع غيار جديدة', 'cat_name_en' => 'New Spare Parts', 'cat_icon_path' => 'spare-parts-icon.png', 'commission_type' => CommissionTypeEnum::Rate->value, 'commission' => 0.01],
             ['cat_name_ar' => 'سطحة', 'cat_name_en' => 'Tow Truck', 'cat_icon_path' => 'tow-truck-icon.png', 'commission_type' => CommissionTypeEnum::Amount->value, 'commission' => 300],
             ['cat_name_ar' => 'معدات ثقيلة', 'cat_name_en' => 'Heavy Equipment', 'cat_icon_path' => 'heavy_equipment-icon.png', 'commission_type' => CommissionTypeEnum::Amount->value, 'commission' => 300],
             ['cat_name_ar' => 'إكسسوارات سيارات', 'cat_name_en' => 'Car Accessories', 'cat_icon_path' => 'car-accessories-icon.png', 'commission_type' => CommissionTypeEnum::Rate->value, 'commission' => 0.01],

@@ -15,5 +15,6 @@ class CategoryHasBrandFieldSeeder extends Seeder
     {
         CategoryHasBrandField::updateOrCreate(['category_id' => 1]);
         CategoryHasBrandField::updateOrCreate(['category_id' => 2]);
+        CategoryHasBrandField::updateOrCreate(['category_id' => 3]);
     }
 }
