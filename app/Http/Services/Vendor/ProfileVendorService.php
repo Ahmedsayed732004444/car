@@ -32,8 +32,12 @@ class ProfileVendorService
 
         $this->profileVendorRepository->updateLogoVendor($filesName, $userId);
 
+        $freshUser = \App\Models\User::find($userId);
+
         return [
-            'logo' => currUserHelper()->logo ?? '',
+            'user' => [
+                'logo' => $freshUser->logo ?? '',
+            ],
         ];
     }
 

@@ -97,7 +97,12 @@ class UploadUtils
 
                     $fileName = self::GenerateRandomName() . '.' . $file->getClientOriginalExtension();
 
-                    $file->move(public_path('uploads'), $fileName);
+                    $uploadDir = public_path('uploads');
+                    if (!file_exists($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+
+                    $file->move($uploadDir, $fileName);
 
                     $imagePaths[] = $fileName;
                 }
