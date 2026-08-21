@@ -120,7 +120,11 @@ class UploadUtils
         try {
             if ($file) {
                 $fileName = self::GenerateRandomName() . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path($path), $fileName);
+                $uploadDir = public_path($path);
+                if (!file_exists($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                $file->move($uploadDir, $fileName);
                 return $fileName;
             }
 

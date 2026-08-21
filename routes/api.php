@@ -30,9 +30,10 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     });
 });
 
+Route::get('/uploads/{filename}', [App\Http\Controllers\FileController::class, 'getImage']);
+
 Route::middleware('auth:sanctum')->controller(App\Http\Controllers\FileController::class)->group(function () {
     Route::get('/uploads-private/{filename}', 'getSensitiveImage');
-    Route::get('/uploads/{filename}', 'getImage');
 });
 
 Route::prefix('v1/auth')->controller(App\Http\Controllers\API\V1\Shared\Auth\AuthController::class)->group(function () {

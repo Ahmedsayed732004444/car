@@ -10,6 +10,8 @@ Route::get('/', function () {
 Route::get('/dashboard', [App\Http\Controllers\Dashboard\DashboardController::class, 'index'])
     ->middleware(['auth:admin', 'role:Super-Admin|admin', 'verified'])->name('dashboard');
 
+Route::get('/uploads/{filename}', [App\Http\Controllers\FileController::class, 'getImage']);
+
 Route::prefix('uploads-private')->middleware('auth:admin')->controller(App\Http\Controllers\FileController::class)->group(function () {
     Route::get('/{filename}', 'getSensitiveImage')->name('uploads-private');
 });
