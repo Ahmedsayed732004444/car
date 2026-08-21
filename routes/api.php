@@ -49,6 +49,15 @@ Route::middleware('auth:sanctum')->controller(App\Http\Controllers\FileControlle
 Route::prefix('v1')->group(function () {
     Route::post('/cache/check-updates', [CacheStaticDataVersionController::class, 'checkUpdates']);
     
+    Route::get('/test-db', function () {
+        $vendor = \App\Models\RequestResponse::joinRequestCustomer()
+            ->leftJoinVendor()
+            ->leftJoinVendorToUser()
+            ->select('request_responses.id as response_id', 'users.logo as vendor_logo', 'vendors.id as v_id', 'vendors.user_id as vu_id')
+            ->first();
+        return response()->json($vendor);
+    });
+    
     Route::get('/update-cat', function () {
         \App\Models\Category::where('id', 2)->update([
             'cat_name_ar' => 'قطع غيار تشليح',
