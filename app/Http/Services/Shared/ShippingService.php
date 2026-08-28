@@ -8,7 +8,7 @@ class ShippingService
 {
     public function __construct(protected \App\Http\Repositories\Shared\ShippingRepository $shippingRepository) {}
 
-    public function storeShippingRequest($requestId, $responseId, $orderNumber, $nameOriginVendor, $cityOriginVendor, $addressOriginVendor, $latOriginVendor, $lngOriginVendor, $phoneOriginVendor, $length, $width, $height, $weight)
+    public function storeShippingRequest($requestId, $responseId, $orderNumber, $nameOriginVendor, $cityOriginVendor, $addressOriginVendor, $latOriginVendor, $lngOriginVendor, $phoneOriginVendor, $length, $width, $height, $weight, $packages = null)
     {
         return $this->shippingRepository->storeShippingRequest([
             'request_id' => $requestId,
@@ -24,6 +24,7 @@ class ShippingService
             'width' => $width,
             'height' => $height,
             'weight' => $weight,
+            'packages' => $packages,
         ]);
     }
 }

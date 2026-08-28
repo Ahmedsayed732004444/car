@@ -84,8 +84,9 @@ class MessageConversationController extends Controller
                     phoneOriginVendor: $shippingInfo['phone'],
                     length: $shippingInfo['length'],
                     width: $shippingInfo['width'],
-                    height: $shippingInfo['height'],
-                    weight: $shippingInfo['weight']
+                    height: $shippingInfo['height'] ?? null,
+                    weight: $shippingInfo['weight'] ?? null,
+                    packages: isset($shippingInfo['packages']) ? json_encode($shippingInfo['packages']) : null
                 );
                 $messagesNotify =  'طلب شحن جديد من الطلب رقم' . ' ( ' . $request->requestId . ' )';
             }
