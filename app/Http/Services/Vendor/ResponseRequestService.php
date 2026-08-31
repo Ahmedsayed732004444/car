@@ -15,7 +15,12 @@ class ResponseRequestService extends BaseService
 
     public function getMyResponseRequests()
     {
-        return $this->responseRequestRepo->getMyResponseRequests();
+        $results = $this->responseRequestRepo->getMyResponseRequests();
+        foreach ($results as $result) {
+            $result->brandsNames = $this->newRequestRepo->getRequestBrandNamesScope($result->request_id);
+            $result->customFields = $this->newRequestRepo->getRequestCustomFields($result->request_id);
+        }
+        return $results;
     }
 
     public function sendResponseRequest(Request $request)
