@@ -57,6 +57,7 @@ class VendorProfileController extends Controller
                 'commercial_record' => $vendor->commercial_record,
                 'total_reviews' => $reviews->total(),
                 'member_since' => $vendor->created_at ? $vendor->created_at->format('Y-m-d') : null,
+                'total_responses' => \App\Models\RequestResponse::whereIn('vendor_id', [$vendor->id, $vendor->user_id])->count(),
             ],
             'reviews' => resultApiPaginationHelper($reviews)
         ];
@@ -111,3 +112,4 @@ class VendorProfileController extends Controller
         return buildApiResponseHelper(true, 'تم إضافة التقييم بنجاح', ['new_rating' => $avgRating]);
     }
 }
+
