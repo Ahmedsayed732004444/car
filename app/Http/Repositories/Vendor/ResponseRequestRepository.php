@@ -10,6 +10,7 @@ class ResponseRequestRepository
 {
     public function getMyResponseRequests()
     {
+        $userId = getCurrUserIdHelper();
         return RequestResponse::joinRequestCustomer()
             ->leftJoinCategoryToRequest()
             ->leftJoinCityCustomerToRequest()
@@ -29,8 +30,10 @@ class ResponseRequestRepository
                 'request_responses.price as price_response',
                 'users.name as user_name',
                 'users.logo as user_logo',
+                \Illuminate\Support\Facades\DB::raw("(SELECT COUNT(message_conversations.id) FROM message_conversations INNER JOIN conversations ON conversations.id = message_conversations.conversation_id WHERE conversations.response_id = request_responses.id AND message_conversations.read = 0 AND message_conversations.sender_id != {$userId}) as unread_messages_count"),
+                \Illuminate\Support\Facades\DB::raw("COALESCE((SELECT MAX(message_conversations.created_at) FROM message_conversations INNER JOIN conversations ON conversations.id = message_conversations.conversation_id WHERE conversations.response_id = request_responses.id), request_responses.created_at) as last_activity")
             )
-            ->orderBy('request_responses.id', 'desc')
+            ->orderBy('last_activity', 'desc')
             ->paginate(10);
     }
 
