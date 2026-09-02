@@ -40,17 +40,19 @@ class ConversationController extends Controller
                 $join->on('vendor_user.id', '=', 'vendors.user_id')
                     ->orOn('vendor_user.id', '=', 'conversations.vendor_id');
             })
+            ->leftJoin('message_conversations', 'message_conversations.conversation_id', '=', 'conversations.id')
             ->where('conversations.user_id', $userId)
             ->select([
                 DB::raw('MAX(conversations.id) as id'),
                 'conversations.request_id',
                 'conversations.response_id',
                 'conversations.vendor_id',
-                DB::raw('COALESCE(NULLIF(NULLIF(vendors.company_name_ar, "التاجر"), ""), vendor_user.name, "التاجر") as receiver_name'),
+                DB::raw('COALESCE(NULLIF(NULLIF(vendors.company_name_ar, "غير محدد"), ""), vendor_user.name, "غير محدد") as receiver_name'),
                 DB::raw('MAX(vendor_user.logo) as receiver_logo'),
+                DB::raw('MAX(message_conversations.created_at) as last_activity'),
             ])
             ->groupBy('conversations.request_id', 'conversations.response_id', 'conversations.vendor_id', 'vendors.company_name_ar', 'vendor_user.name')
-            ->orderBy('id', 'desc')
+            ->orderByRaw('COALESCE(MAX(message_conversations.created_at), MAX(conversations.created_at)) DESC')
             ->paginate(10);
 
         return buildApiResponseHelper(true, 'تم التحميل بنجاح', resultApiPaginationHelper($conversations));
@@ -144,3 +146,5 @@ class ConversationController extends Controller
         return $conversation ? buildApiResponseHelper(true, 'تمت العملية بنجاح', ['conversationId' => $conversation->id]) : buildApiResponseHelper(false, 'حدث خطأ');
     }
 }
+
+
