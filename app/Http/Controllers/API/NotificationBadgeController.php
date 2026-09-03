@@ -75,19 +75,24 @@ class NotificationBadgeController extends Controller
 
             $conversationsCount = 0;
             $conversationEntityCounts = [];
+            $requestConversationsEntityCounts = [];
 
             if ($userConversationIds->isNotEmpty()) {
-                $rawCounts = MessageConversation::whereIn('conversation_id', $userConversationIds)
-                    ->where('sender_id', '!=', $userId)
+                $rawCounts = MessageConversation::join('conversations', 'message_conversations.conversation_id', '=', 'conversations.id')
+                    ->whereIn('message_conversations.conversation_id', $userConversationIds)
+                    ->where('message_conversations.sender_id', '!=', $userId)
                     ->where(function ($q) {
-                        $q->where('read', 0)->orWhere('read', false)->orWhereNull('read');
+                        $q->where('message_conversations.read', 0)->orWhere('message_conversations.read', false)->orWhereNull('message_conversations.read');
                     })
-                    ->select('conversation_id', DB::raw('count(*) as count'))
-                    ->groupBy('conversation_id')
+                    ->select('message_conversations.conversation_id', 'conversations.request_id', DB::raw('count(*) as count'))
+                    ->groupBy('message_conversations.conversation_id', 'conversations.request_id')
                     ->get();
 
                 foreach ($rawCounts as $row) {
                     $conversationEntityCounts[(string)$row->conversation_id] = (int)$row->count;
+                    if ($row->request_id) {
+                        $requestConversationsEntityCounts[(string)$row->request_id] = ($requestConversationsEntityCounts[(string)$row->request_id] ?? 0) + (int)$row->count;
+                    }
                     $conversationsCount += (int)$row->count;
                 }
             }
@@ -105,6 +110,7 @@ class NotificationBadgeController extends Controller
                     ],
                     'entities' => [
                         'conversations' => $conversationEntityCounts,
+                        'request_conversations' => $requestConversationsEntityCounts,
                         'customer_requests' => $customerRequestsEntityCounts,
                         'company_responses' => $companyResponsesEntityCounts,
                     ]
