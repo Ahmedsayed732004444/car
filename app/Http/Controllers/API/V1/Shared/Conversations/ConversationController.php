@@ -42,6 +42,9 @@ class ConversationController extends Controller
             })
             ->leftJoin('message_conversations', 'message_conversations.conversation_id', '=', 'conversations.id')
             ->where('conversations.user_id', $userId)
+            ->when($request->has('request_id'), function ($query) use ($request) {
+                $query->where('conversations.request_id', $request->request_id);
+            })
             ->select([
                 DB::raw('MAX(conversations.id) as id'),
                 'conversations.request_id',
@@ -146,5 +149,6 @@ class ConversationController extends Controller
         return $conversation ? buildApiResponseHelper(true, 'تمت العملية بنجاح', ['conversationId' => $conversation->id]) : buildApiResponseHelper(false, 'حدث خطأ');
     }
 }
+
 
 
