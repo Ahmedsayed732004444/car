@@ -131,3 +131,12 @@ Route::get('/fix-icon-v4', function() {
     return 'Done v4';
 });
 
+
+Route::get('/fix-icon-v5', function() {
+    \Illuminate\Support\Facades\DB::table('categories')
+        ->where('id', 1)
+        ->update(['cat_icon_path' => 'new-spare-parts-icon-v4.png']);
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    return 'Done v5';
+});
+
