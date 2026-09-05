@@ -150,3 +150,18 @@ Route::get('/fix-icon-v4', function() {
     return 'Icon V4 fixed!';
 });
 
+
+Route::get('/fix-icons-v6', function() {
+    \Illuminate\Support\Facades\DB::table('categories')
+        ->where('id', 1)
+        ->update(['cat_icon_path' => 'new-cars-icon.png']);
+    \Illuminate\Support\Facades\DB::table('categories')
+        ->where('id', 3)
+        ->update(['cat_icon_path' => 'spare-parts-icon.png']);
+        
+    \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+    \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    return 'Icons restored!';
+});
+
