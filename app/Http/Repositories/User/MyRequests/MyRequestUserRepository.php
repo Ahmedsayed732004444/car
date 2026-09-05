@@ -38,7 +38,7 @@ class MyRequestUserRepository
                      WHERE notifiable_id = request_customers.user_id
                      AND read_at IS NULL
                      AND notifiable_type LIKE "%User%"
-                     AND (JSON_EXTRACT(data, "$.target_id") = request_customers.id)
+                     AND (JSON_UNQUOTE(JSON_EXTRACT(data, "$.target_id")) = request_customers.id)
                     )
                 ) as unread_activity_count
                 '
