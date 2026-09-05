@@ -165,3 +165,13 @@ Route::get('/fix-icons-v6', function() {
     return 'Icons restored!';
 });
 
+
+Route::get('/fix-icon-v4', function() {
+    \Illuminate\Support\Facades\DB::table('categories')
+        ->where('id', 3)
+        ->update(['cat_icon_path' => 'new-spare-parts-icon-v4.png']);
+    \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+    \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+    return 'Icon V4 fixed!';
+});
+
