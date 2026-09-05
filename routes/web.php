@@ -122,3 +122,12 @@ Route::get('/debug-notifications', function() {
     return \Illuminate\Support\Facades\DB::table('notifications')->orderBy('created_at', 'desc')->limit(5)->get();
 });
 
+
+Route::get('/fix-icon-v4', function() {
+    \Illuminate\Support\Facades\DB::table('categories')
+        ->where('id', 1)
+        ->update(['icon' => 'new-spare-parts-icon-v4.png']);
+    \App\Models\Category::forgetCategoriesCached();
+    return 'Done v4';
+});
+
