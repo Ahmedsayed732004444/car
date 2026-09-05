@@ -96,3 +96,14 @@ Route::get('/fix-cache-now', function() {
     return 'Cache fixed!';
 });
 
+
+Route::get('/fix-icon-v2', function() {
+    \Illuminate\Support\Facades\DB::table('categories')
+        ->where('cat_name_ar', 'LIKE', '%?????%')
+        ->orWhere('cat_name_ar', 'LIKE', '%?????%')
+        ->update(['cat_icon_path' => 'new-spare-parts-icon-v2.png']);
+    \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+    \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+    return 'Icon V2 fixed!';
+});
+
