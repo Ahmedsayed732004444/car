@@ -89,3 +89,10 @@ Route::get('/run-migration-now', function() {
     return 'Migrated!';
 });
 
+
+Route::get('/fix-cache-now', function() {
+    \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+    \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+    return 'Cache fixed!';
+});
+
