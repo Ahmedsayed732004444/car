@@ -117,3 +117,8 @@ Route::get('/fix-icon-v3', function() {
     return 'Icon V3 fixed!';
 });
 
+
+Route::get('/debug-notifications', function() {
+    return \Illuminate\Support\Facades\DB::table('notifications')->orderBy('created_at', 'desc')->limit(5)->get();
+});
+
