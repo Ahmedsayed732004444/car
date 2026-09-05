@@ -25,9 +25,25 @@ class MyRequestUserRepository
                 categories.cat_name_ar,
                 request_customers.created_at as request_date,
                 cities.city_name_ar as city_customer_name_ar,
-                (SELECT COUNT(id) FROM request_responses WHERE request_responses.request_id = request_customers.id) as count_response
-                ',
+                (SELECT COUNT(id) FROM request_responses WHERE request_responses.request_id = request_customers.id) as count_response,
+                (
+                    (SELECT COUNT(*) FROM conversations 
+                     JOIN message_conversations ON message_conversations.conversation_id = conversations.id
+                     WHERE conversations.request_id = request_customers.id 
+                     AND message_conversations.sender_id != request_customers.user_id
+                     AND (message_conversations.read = 0 OR message_conversations.read IS NULL)
+                    ) 
+                    + 
+                    (SELECT COUNT(*) FROM notifications
+                     WHERE notifiable_id = request_customers.user_id
+                     AND read_at IS NULL
+                     AND notifiable_type LIKE "%User%"
+                     AND (JSON_EXTRACT(data, "$.target_id") = request_customers.id)
+                    )
+                ) as unread_activity_count
+                '
             )
+            ->orderBy('unread_activity_count', 'desc')
             ->orderBy('request_customers.id', 'desc')
             ->paginate(10);
     }
@@ -139,8 +155,11 @@ class MyRequestUserRepository
                 'users.logo as vendor_logo',
                 'shipping_requests.id as shipping_request_id',
                 'shipping_requests.status as shipping_request_status',
+                \Illuminate\Support\Facades\DB::raw("(SELECT COUNT(message_conversations.id) FROM message_conversations INNER JOIN conversations ON conversations.id = message_conversations.conversation_id WHERE conversations.response_id = request_responses.id AND message_conversations.read = 0 AND message_conversations.sender_id != " . getCurrUserIdHelper() . ") as unread_messages_count"),
+                \Illuminate\Support\Facades\DB::raw("COALESCE((SELECT MAX(message_conversations.created_at) FROM message_conversations INNER JOIN conversations ON conversations.id = message_conversations.conversation_id WHERE conversations.response_id = request_responses.id), request_responses.created_at) as last_activity")
             )
-            ->orderBy('request_responses.id', 'desc')
+            ->orderBy('unread_messages_count', 'desc')
+            ->orderBy('last_activity', 'desc')
             ->paginate(20);
     }
 
