@@ -50,13 +50,27 @@ class OTOServiceUtils
 
     public function checkDeliveryFeeAndGetCheapest($accessToken, $originCity, $destinationCity, $width, $length, $height, $weight)
     {
+        $w = (float) ($width ?: 10);
+        $l = (float) ($length ?: 10);
+        $h = (float) ($height ?: 10);
+        $wt = (float) ($weight ?: 1);
+
         $dataBody = [
             'originCity' => $originCity ?? '',
             'destinationCity' => $destinationCity ?? '',
-            'width' => (float) ($width ?: 10),
-            'length' => (float) ($length ?: 10),
-            'height' => (float) ($height ?: 10),
-            'weight' => (float) ($weight ?: 1),
+            'boxes' => [
+                [
+                    'boxName' => 'Box1',
+                    'width' => $w,
+                    'length' => $l,
+                    'height' => $h,
+                    'weight' => $wt,
+                ]
+            ],
+            'width' => $w,
+            'length' => $l,
+            'height' => $h,
+            'weight' => $wt,
             'isCod' => true,
         ];
 

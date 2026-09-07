@@ -68,13 +68,27 @@ class RequestController extends Controller
                 $destinationCity = 'الرياض';
             }
 
+            $w = (float) ($shippingRequest->width ?: 10);
+            $l = (float) ($shippingRequest->length ?: 10);
+            $h = (float) ($shippingRequest->height ?: 10);
+            $wt = (float) ($shippingRequest->weight ?: 1);
+
             $dataBody = [
                 'originCity' => $originCity,
                 'destinationCity' => $destinationCity,
-                'width' => (float) ($shippingRequest->width ?: 10),
-                'length' => (float) ($shippingRequest->length ?: 10),
-                'height' => (float) ($shippingRequest->height ?: 10),
-                'weight' => (float) ($shippingRequest->weight ?: 1),
+                'boxes' => [
+                    [
+                        'boxName' => 'Box1',
+                        'width' => $w,
+                        'length' => $l,
+                        'height' => $h,
+                        'weight' => $wt,
+                    ]
+                ],
+                'width' => $w,
+                'length' => $l,
+                'height' => $h,
+                'weight' => $wt,
                 'isCod' => true
             ];
 
