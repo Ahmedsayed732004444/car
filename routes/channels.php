@@ -7,6 +7,12 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
+// هذه القناة ضرورية لعمل الإشعارات اللحظية — بدونها هيرفض السيرفر
+// أي اشتراك في القناة اللي بيبعت عليها NotificationBadgeUpdated
+Broadcast::channel('user.{id}', function ($user, $id) {
+    return (int) $user->id === (int) $id;
+});
+
 Broadcast::channel('private-conversation.{conversationId}', function ($user, $conversationId) {
     $conv = Conversation::find($conversationId);
     if (!$conv) return false;

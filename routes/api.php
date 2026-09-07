@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\API\V1\Shared\CacheStaticDataVersionController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
+
+Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 Route::prefix('v1/user')->group(base_path('routes/api_user_v1.php'));
 Route::prefix('v1/vendor')->group(base_path('routes/api_vendor_v1.php'));

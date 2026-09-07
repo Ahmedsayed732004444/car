@@ -77,7 +77,7 @@ class MessageConversationController extends Controller
                     responseId: $request->responseId,
                     orderNumber: 'REQ-' . $request->requestId . '-RES-' . $request->responseId . '-MSG-' . $created->id,
                     nameOriginVendor: $shippingInfo['name'] ?? null,
-                    cityOriginVendor: $shippingInfo['city'] ?? 'مدينة غير محددة',
+                    cityOriginVendor: !empty($shippingInfo['city']) ? $shippingInfo['city'] : 'الرياض',
                     addressOriginVendor: $shippingInfo['address'],
                     latOriginVendor: isset($shippingInfo['lat']) ? (float) $shippingInfo['lat'] : null,
                     lngOriginVendor: isset($shippingInfo['lng']) ? (float) $shippingInfo['lng'] : null,

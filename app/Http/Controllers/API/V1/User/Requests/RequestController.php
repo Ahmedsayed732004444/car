@@ -55,38 +55,53 @@ class RequestController extends Controller
             $shippingRequest = ShippingRequest::where('request_id', $request->requestId)->where('response_id', $request->responseId)->latest()->first();
 
             if (!$shippingRequest) {
-                return buildApiResponseHelper(false, 'لا يوجد شحنة');
+                return buildApiResponseHelper(false, 'لا يوجد شحنة لهذا الطلب');
+            }
+
+            $originCity = trim($shippingRequest->city_origin_vendor ?? '');
+            if (empty($originCity) || $originCity === 'مدينة غير محددة') {
+                $originCity = 'الرياض';
+            }
+
+            $destinationCity = trim($request->cityOriginDimensions ?? '');
+            if (empty($destinationCity)) {
+                $destinationCity = 'الرياض';
             }
 
             $dataBody = [
-                'originCity' => $shippingRequest->city_origin_vendor ?? '',
-                'destinationCity' => $request->cityOriginDimensions,
-                'width' => $shippingRequest->width,
-                'length' => $shippingRequest->length,
-                'height' => $shippingRequest->height,
-                'weight' => $shippingRequest->weight,
+                'originCity' => $originCity,
+                'destinationCity' => $destinationCity,
+                'width' => $shippingRequest->width ?: 10,
+                'length' => $shippingRequest->length ?: 10,
+                'height' => $shippingRequest->height ?: 10,
+                'weight' => $shippingRequest->weight ?: 1,
                 'isCod' => true
             ];
 
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->otoServiceUtils->getAccessTokenOTO(),
+            $token = $this->otoServiceUtils->getAccessTokenOTO();
+            $response = Http::timeout(15)->withHeaders([
+                'Authorization' => 'Bearer ' . $token,
                 'Accept' => 'application/json',
             ])
                 ->post(config('services.oto.url') . '/checkOTODeliveryFee', $dataBody);
 
-
             if ($response->ok()) {
                 $result = $response->json();
-                if ($result['success'] == false) {
-                    return buildApiResponseHelper(false, 'لا يوجد شحنة');
+                if (isset($result['success']) && $result['success'] == false) {
+                    Log::warning('OTO Delivery Fee Warning: ', $result);
+                    return buildApiResponseHelper(false, 'لا توجد شركات شحن متاحة لهذا المسار حالياً');
                 }
 
-                $companies = $result['deliveryCompany'];
+                $companies = $result['deliveryCompany'] ?? [];
+                if (empty($companies)) {
+                    return buildApiResponseHelper(false, 'لا تتوفر شركات شحن متاحة حالياً');
+                }
+
                 $cheapest = collect($companies)->sortBy('price')->first();
                 $cheapestPrice = $cheapest['price'] ?? 0;
                 $shippingRequest->update([
                     'id_number_user' => $request->idNumberUser,
-                    'city_origin_dimensions' => $request->cityOriginDimensions,
+                    'city_origin_dimensions' => $destinationCity,
                     'address_origin_dimensions' => $request->addressOriginDimensions,
                     'phone_origin_dimensions' => $request->phoneOriginDimensions,
                     'fee_cheapest_shipping' => $cheapestPrice,
@@ -95,7 +110,9 @@ class RequestController extends Controller
 
                 return buildApiResponseHelper(true, 'السعر التقريبي للشحنة' . ' ' . ($cheapestPrice + ConfigUtils::getAmountRateAppForCharge()) . ' ريال' . ' - إضغط موافق لتاكيد الشحنة',  ['shippingRequestId' => $shippingRequest->id]);
             }
-            return buildApiResponseHelper(false, 'لا يوجد شحنة');
+
+            Log::error('OTO Delivery Fee Error: ' . $response->status() . ' - ' . $response->body());
+            return buildApiResponseHelper(false, 'تعذر جلب أسعار الشحن من شركة الشحن ... الرجاء المحاولة لاحقاً');
         } catch (Exception $e) {
             report($e);
             throw new CustomResponseException("حدث خطاء في تاكيد الشحنة ... الرجاء المحاولة مرة اخرى");
