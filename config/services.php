@@ -36,8 +36,8 @@ return [
     ],
 
     'oto' => [
-        'url' => env('OTO_API_URL'),
-        'refresh_token' => env('OTO_REFRESH_TOKEN'),
+        'url' => env('OTO_API_URL', 'https://api.tryoto.com/rest/v2'),
+        'refresh_token' => env('OTO_REFRESH_TOKEN', 'AMf-vBwsG7J61J_1EkBNW_wnKdQc4Xyalpz59J1QittknHfsekYzdv-1sDxoeD1oaw5_OBxmnVtjkwzm7nAUsfkEZoZpmMQtAINMhJLIWxAiJ1xnX9IY4ksBrIGoiGFG1ULhV8nT-a7ucNxD28bjK-cf6bOPEVWYpVDdQToxKpvgEXp2yQTujA3HT5XMIo_x31f1k6I41WA3pdKzsrwSCU_NQSijp1oBxQ'),
         'access_token' => env('OTO_ACCESS_TOKEN'),
     ],
 

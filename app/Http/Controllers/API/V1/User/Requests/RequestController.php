@@ -71,19 +71,25 @@ class RequestController extends Controller
             $dataBody = [
                 'originCity' => $originCity,
                 'destinationCity' => $destinationCity,
-                'width' => $shippingRequest->width ?: 10,
-                'length' => $shippingRequest->length ?: 10,
-                'height' => $shippingRequest->height ?: 10,
-                'weight' => $shippingRequest->weight ?: 1,
+                'width' => (float) ($shippingRequest->width ?: 10),
+                'length' => (float) ($shippingRequest->length ?: 10),
+                'height' => (float) ($shippingRequest->height ?: 10),
+                'weight' => (float) ($shippingRequest->weight ?: 1),
                 'isCod' => true
             ];
 
             $token = $this->otoServiceUtils->getAccessTokenOTO();
+            if (empty($token)) {
+                Log::error('OTO Access Token is empty in ConfirmShippingRequest');
+                return buildApiResponseHelper(false, 'تعذر الاتصال بشركة الشحن في الوقت الحالي ... الرجاء المحاولة لاحقاً');
+            }
+
+            $otoUrl = $this->otoServiceUtils->getBaseUrl();
             $response = Http::timeout(15)->withHeaders([
                 'Authorization' => 'Bearer ' . $token,
                 'Accept' => 'application/json',
             ])
-                ->post(config('services.oto.url') . '/checkOTODeliveryFee', $dataBody);
+                ->post($otoUrl . '/checkOTODeliveryFee', $dataBody);
 
             if ($response->ok()) {
                 $result = $response->json();
@@ -114,8 +120,9 @@ class RequestController extends Controller
             Log::error('OTO Delivery Fee Error: ' . $response->status() . ' - ' . $response->body());
             return buildApiResponseHelper(false, 'تعذر جلب أسعار الشحن من شركة الشحن ... الرجاء المحاولة لاحقاً');
         } catch (Exception $e) {
+            Log::error('ConfirmShippingRequest Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             report($e);
-            throw new CustomResponseException("حدث خطاء في تاكيد الشحنة ... الرجاء المحاولة مرة اخرى");
+            return buildApiResponseHelper(false, 'حدث خطأ في تأكيد الشحنة ... الرجاء المحاولة مرة أخرى');
         }
     }
 
