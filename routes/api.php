@@ -79,3 +79,4 @@ Route::prefix('v1')->group(function () {
         return response()->json(['success' => true]);
     });
 });
+Route::get('/test-railway', function () { return 'Railway is deploying!'; });
