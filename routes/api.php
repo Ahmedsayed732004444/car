@@ -49,6 +49,10 @@ Route::middleware('auth:sanctum')->controller(App\Http\Controllers\FileControlle
     Route::get('/{filename}', 'getSensitiveImage');
 });
 
+Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
+    Route::get('/cities', [App\Http\Controllers\API\V1\Shared\CityController::class, 'getCities']);
+});
+
 Route::prefix('v1')->group(function () {
     Route::post('/cache/check-updates', [CacheStaticDataVersionController::class, 'checkUpdates']);
     

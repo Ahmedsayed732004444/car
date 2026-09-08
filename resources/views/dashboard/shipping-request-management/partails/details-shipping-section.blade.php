@@ -42,15 +42,15 @@
                     <td>{{ $shippingRequest->address_origin_dimensions ?? '-' }}</td>
                 </tr>
                 <tr>
-                    <th>رقم الشركة</th>
+                    <th>رقم المرسل (الشركة)</th>
                     <td>{{ $shippingRequest->phone_origin_vendor ?? '-' }}</td>
                 </tr>
                 <tr>
-                    <th>مدينة المستلم</th>
+                    <th>مدينة الإرسال (الشركة)</th>
                     <td>{{ $shippingRequest->city_origin_vendor ?? '-' }}</td>
                 </tr>
                 <tr>
-                    <th>عنوان المستلم</th>
+                    <th>عنوان الإرسال (الشركة)</th>
                     <td>{{ $shippingRequest->address_origin_vendor ?? '-' }}</td>
                 </tr>
 
