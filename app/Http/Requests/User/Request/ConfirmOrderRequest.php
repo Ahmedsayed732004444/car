@@ -57,7 +57,7 @@ class ConfirmOrderRequest extends FormRequest
 
                         foreach ($customFieldsList as $item) {
                             if ($item->field_type != CustomFieldTypeEnum::File->value) {
-                                $customField = $value[$item->field_name];
+                                $customField = $value[$item->field_name] ?? null;
                                 if ($item->is_required == true && empty($customField)) {
                                     $fail("حقل {$item->label_ar} مطلوب");
                                 }
