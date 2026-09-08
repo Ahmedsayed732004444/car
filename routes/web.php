@@ -175,3 +175,8 @@ Route::get('/fix-icon-v4', function() {
     return 'Icon V4 fixed!';
 });
 
+
+Route::get('/logs', function() {
+    return file_exists(storage_path('logs/laravel.log')) ? file_get_contents(storage_path('logs/laravel.log')) : 'no logs';
+});
+
