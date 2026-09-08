@@ -9,9 +9,7 @@ class CityController extends Controller
 {
     public function getCities()
     {
-        $cities = City::getCitiesCached()
-            ->where('is_active', true)
-            ->values();
+        $cities = City::getCitiesCached()->values();
 
         return buildApiResponseHelper(true, 'تم جلب المدن بنجاح', $cities);
     }
