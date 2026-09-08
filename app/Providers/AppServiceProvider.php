@@ -18,6 +18,7 @@ use App\Observers\CustomFieldObserver;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -57,13 +58,24 @@ class AppServiceProvider extends ServiceProvider
         // polling. This fires automatically for every current and future
         // ->notify(new SendNotification(...)) call in the app — no need
         // to touch each call site individually.
+        //
+        // Wrapped in try/catch: broadcasting depends on an external
+        // WebSocket server (Reverb) being reachable. If it's down/misconfigured,
+        // this must NEVER break the request that triggered the notification
+        // (e.g. confirming an order). We log the failure and move on.
         Event::listen(function (NotificationSent $event) {
             if ($event->notification instanceof SendNotification) {
-                NotificationBadgeUpdated::dispatch(
-                    $event->notifiable->id,
-                    $event->notification->toArray($event->notifiable)['category'] ?? null,
-                    []
-                );
+                try {
+                    NotificationBadgeUpdated::dispatch(
+                        $event->notifiable->id,
+                        $event->notification->toArray($event->notifiable)['category'] ?? null,
+                        []
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('Broadcast failed for NotificationBadgeUpdated: ' . $e->getMessage(), [
+                        'notifiable_id' => $event->notifiable->id ?? null,
+                    ]);
+                }
             }
         });
     }
