@@ -100,7 +100,7 @@ class ShippingRequestManagementService extends BaseService
                 "senderMobile" => $shippingRequest->phone_origin_vendor ?? '',
                 // "senderEmail" => "test@example.com",
                 "senderCountry" => "SA",
-                "senderCity" => $shippingRequest->city_origin_vendor ?? '',
+                "senderCity" => \App\Utils\OTOServiceUtils::sanitizeCity($shippingRequest->city_origin_vendor),
                 "senderAddressLine" => $shippingRequest->address_origin_vendor ?? ''
             ],
             "customer" => [
@@ -109,7 +109,7 @@ class ShippingRequestManagementService extends BaseService
                 "mobile" => $shippingRequest->phone_origin_dimensions ?? '',
                 "address" => $shippingRequest->address_origin_dimensions ?? '',
                 // "district" => "Al Mughaisilah Dist.",
-                "city" => $shippingRequest->city_origin_dimensions ?? '',
+                "city" => \App\Utils\OTOServiceUtils::sanitizeCity($shippingRequest->city_origin_dimensions),
                 "country" => "SA",
                 // "postcode" => "42315"
             ],

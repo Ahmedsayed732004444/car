@@ -58,15 +58,8 @@ class RequestController extends Controller
                 return buildApiResponseHelper(false, 'لا يوجد شحنة لهذا الطلب');
             }
 
-            $originCity = trim($shippingRequest->city_origin_vendor ?? '');
-            if (empty($originCity) || $originCity === 'مدينة غير محددة') {
-                $originCity = 'الرياض';
-            }
-
-            $destinationCity = trim($request->cityOriginDimensions ?? '');
-            if (empty($destinationCity)) {
-                $destinationCity = 'الرياض';
-            }
+            $originCity = OTOServiceUtils::sanitizeCity($shippingRequest->city_origin_vendor);
+            $destinationCity = OTOServiceUtils::sanitizeCity($request->cityOriginDimensions);
 
             $w = (float) ($shippingRequest->width ?: 10);
             $l = (float) ($shippingRequest->length ?: 10);
@@ -131,7 +124,7 @@ class RequestController extends Controller
                 return buildApiResponseHelper(true, 'السعر التقريبي للشحنة' . ' ' . ($cheapestPrice + ConfigUtils::getAmountRateAppForCharge()) . ' ريال' . ' - إضغط موافق لتاكيد الشحنة',  ['shippingRequestId' => $shippingRequest->id]);
             }
 
-            Log::error('OTO Delivery Fee Error: ' . $response->status() . ' - ' . $response->body());
+            Log::error('OTO Delivery Fee Error: ' . $response->status() . ' - ' . $response->body(), ['payload' => $dataBody]);
             return buildApiResponseHelper(false, 'تعذر جلب أسعار الشحن من شركة الشحن ... الرجاء المحاولة لاحقاً');
         } catch (Exception $e) {
             Log::error('ConfirmShippingRequest Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);

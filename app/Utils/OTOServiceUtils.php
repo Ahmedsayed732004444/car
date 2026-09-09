@@ -16,6 +16,88 @@ class OTOServiceUtils
         return rtrim($url, '/');
     }
 
+    public static function sanitizeCity(?string $cityInput): string
+    {
+        $city = trim($cityInput ?? '');
+        if (empty($city) || $city === 'مدينة غير محددة') {
+            return 'Riyadh';
+        }
+
+        $mapping = [
+            'الرياض' => 'Riyadh',
+            'riyadh' => 'Riyadh',
+            'مكة' => 'Makkah',
+            'makkah' => 'Makkah',
+            'mecca' => 'Makkah',
+            'جده' => 'Jeddah',
+            'جدة' => 'Jeddah',
+            'jeddah' => 'Jeddah',
+            'المدينة' => 'Madinah',
+            'مدينه' => 'Madinah',
+            'مدينة' => 'Madinah',
+            'madinah' => 'Madinah',
+            'medina' => 'Madinah',
+            'القصيم' => 'Qassim',
+            'قصيم' => 'Qassim',
+            'qassim' => 'Qassim',
+            'الشرقية' => 'Eastern Province',
+            'eastern' => 'Eastern Province',
+            'الدمام' => 'Dammam',
+            'دمام' => 'Dammam',
+            'dammam' => 'Dammam',
+            'الخبر' => 'Khobar',
+            'khobar' => 'Khobar',
+            'عسير' => 'Asir',
+            'asir' => 'Asir',
+            'تبوك' => 'Tabuk',
+            'tabuk' => 'Tabuk',
+            'حائل' => 'Hail',
+            'hail' => 'Hail',
+            'الحدود الشمالية' => 'Northern Borders',
+            'northern' => 'Northern Borders',
+            'نجران' => 'Najran',
+            'najran' => 'Najran',
+            'الباحة' => 'Al Baha',
+            'باحة' => 'Al Baha',
+            'baha' => 'Al Baha',
+            'جيزان' => 'Jizan',
+            'جازان' => 'Jizan',
+            'jizan' => 'Jizan',
+            'jazan' => 'Jizan',
+            'الجوف' => 'Al Jouf',
+            'جوف' => 'Al Jouf',
+            'jouf' => 'Al Jouf',
+            'الطائف' => 'Taif',
+            'طائف' => 'Taif',
+            'taif' => 'Taif',
+            'ينبع' => 'Yanbu',
+            'yanbu' => 'Yanbu',
+            'أبها' => 'Abha',
+            'ابها' => 'Abha',
+            'abha' => 'Abha',
+            'عرعر' => 'Arar',
+            'arar' => 'Arar',
+            'الهفوف' => 'Hofuf',
+            'hofuf' => 'Hofuf',
+            'الأحساء' => 'Al Ahsa',
+            'احساء' => 'Al Ahsa',
+            'ahsa' => 'Al Ahsa',
+        ];
+
+        $lower = mb_strtolower($city, 'UTF-8');
+        if (isset($mapping[$lower])) {
+            return $mapping[$lower];
+        }
+
+        foreach ($mapping as $needle => $targetCity) {
+            if (mb_stripos($city, $needle, 0, 'UTF-8') !== false) {
+                return $targetCity;
+            }
+        }
+
+        return 'Riyadh';
+    }
+
     public function getRefreshToken(): string
     {
         $token = config('services.oto.refresh_token');
@@ -56,8 +138,8 @@ class OTOServiceUtils
         $wt = (float) ($weight ?: 1);
 
         $dataBody = [
-            'originCity' => $originCity ?? '',
-            'destinationCity' => $destinationCity ?? '',
+            'originCity' => self::sanitizeCity($originCity),
+            'destinationCity' => self::sanitizeCity($destinationCity),
             'boxes' => [
                 [
                     'boxName' => 'Box1',
