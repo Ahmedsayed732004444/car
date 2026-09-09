@@ -18,9 +18,12 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
         \Illuminate\Support\Facades\Log::warning("Broadcast auth failed: Conversation {$conversationId} not found");
         return false;
     }
-    $allowed = (int) $user->id === (int) $conv->vendor_id || (int) $user->id === (int) $conv->user_id;
+    
+    $vendorUserId = \App\Models\Vendor::where('id', $conv->vendor_id)->value('user_id') ?: $conv->vendor_id;
+    
+    $allowed = (int) $user->id === (int) $vendorUserId || (int) $user->id === (int) $conv->user_id;
     if (!$allowed) {
-        \Illuminate\Support\Facades\Log::warning("Broadcast auth forbidden: User {$user->id} not in conversation {$conversationId}");
+        \Illuminate\Support\Facades\Log::warning("Broadcast auth forbidden: User {$user->id} not participant in conversation {$conversationId} (vendor user: {$vendorUserId}, client user: {$conv->user_id})");
     }
     return $allowed;
 });
@@ -28,7 +31,8 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
 Broadcast::channel('private-conversation.{conversationId}', function ($user, $conversationId) {
     $conv = Conversation::find($conversationId);
     if (!$conv) return false;
-    return (int) $user->id === (int) $conv->vendor_id || (int) $user->id === (int) $conv->user_id;
+    $vendorUserId = \App\Models\Vendor::where('id', $conv->vendor_id)->value('user_id') ?: $conv->vendor_id;
+    return (int) $user->id === (int) $vendorUserId || (int) $user->id === (int) $conv->user_id;
 });
 
 Broadcast::channel('chat.{id1}.{id2}', function ($user, $id1, $id2) {
