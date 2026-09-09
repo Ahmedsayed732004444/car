@@ -145,7 +145,7 @@ class RequestController extends Controller
         $this->notifyToAdmin('طلب شحنة جديد', 'هناك طلب شحنة جديد ... طلب شحنة جديد');
 
         // Dispatch Email Notification to Admin Emails
-        \App\Jobs\SendNewShippingRequestNotificationJob::dispatchAfterResponse($request->id);
+        \App\Jobs\SendNewShippingRequestNotificationJob::dispatch($request->id);
 
         return buildApiResponseHelper(true, 'تم تاكيد الشحنة بنجاح');
     }

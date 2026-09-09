@@ -183,10 +183,20 @@ class FcmNotificationUtils
     private function getAccessToken()
     {
         return Cache::remember('fcm_access_token_key', 3500, function () {
-            $credentialsPath = storage_path('app/json/firebase/car-mediator-platform-firebase-adminsdk-fbsvc-1d8876fe49.json'); // Path to your service account file
-
             $client = new Google_Client();
-            $client->setAuthConfig($credentialsPath);
+            
+            // Check for env variable first (for Railway)
+            $envCredentials = env('FIREBASE_CREDENTIALS');
+            $credentialsPath = storage_path('app/json/firebase/car-mediator-platform-firebase-adminsdk-fbsvc-1d8876fe49.json');
+            
+            if (!empty($envCredentials)) {
+                $client->setAuthConfig(json_decode($envCredentials, true));
+            } elseif (file_exists($credentialsPath)) {
+                $client->setAuthConfig($credentialsPath);
+            } else {
+                throw new Exception("Firebase credentials not found. Please set FIREBASE_CREDENTIALS env var or add the json file.");
+            }
+
             $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
 
             $token = $client->fetchAccessTokenWithAssertion();
