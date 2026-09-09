@@ -92,6 +92,20 @@ class MessageConversationController extends Controller
             }
 
             if ($receiverId && (int) $receiverId !== (int) $userId) {
+                $conversation = Conversation::find($request->conversationId);
+                $vendorId = $conversation ? $conversation->vendor_id : 0;
+
+                $senderName = 'المحادثة';
+                if ($conversation) {
+                    if ((int)$userId === (int)$conversation->user_id) {
+                        $userObj = \App\Models\User::find($userId);
+                        $senderName = $userObj ? $userObj->name : 'العميل';
+                    } else {
+                        $vendorObj = \App\Models\Vendor::find($vendorId);
+                        $senderName = $vendorObj ? $vendorObj->company_name_ar : 'المورد';
+                    }
+                }
+
                 $this->notifyByID(
                     userId: $receiverId,
                     title: $messagesNotify,
@@ -102,8 +116,10 @@ class MessageConversationController extends Controller
                         'conversation_id' => (string) $request->conversationId,
                         'message_id' => (string) $created->id,
                         'sender_id' => (string) $userId,
-                        'body' => (string) ($request->body ?? ''),
-                        'image' => (string) ($fileName ?? ''),
+                        'request_id' => (string) $request->requestId,
+                        'response_id' => (string) $request->responseId,
+                        'vendor_id' => (string) $vendorId,
+                        'receiver_name' => $senderName,
                         'is_shipping_request' => $request->isSendShippingRequest ? '1' : '0',
                     ]
                 );

@@ -25,7 +25,13 @@ trait NotificationsTrait
             $user = User::where('id', $vendor->user_id)->first(['id', 'fcm_token']);
             if ($user) {
                 $user->notify(new SendNotification(title: 'طلب جديد', body: 'تم اضافة طلب جديد', category: 'customer_requests', targetId: $requestId));
-                (new FcmNotificationUtils())->setTitle('طلب جديد')->setBody('تم اضافة طلب جديد')->setCategory('customer_requests')->setToken($user->fcm_token)->send();
+                (new FcmNotificationUtils())
+                    ->setTitle('طلب جديد')
+                    ->setBody('تم اضافة طلب جديد')
+                    ->setCategory('customer_requests')
+                    ->setExtraData(['target_id' => (string) $requestId])
+                    ->setToken($user->fcm_token)
+                    ->send();
             }
         }
     }
@@ -37,6 +43,11 @@ trait NotificationsTrait
             if ($notifyDB) {
                 $user->notify(new SendNotification(title: $title, body: $body, category: $category, targetId: $targetId));
             }
+            
+            if ($targetId && !isset($extraData['target_id'])) {
+                $extraData['target_id'] = (string) $targetId;
+            }
+            
             (new FcmNotificationUtils())
                 ->setTitle($title)
                 ->setBody($body)

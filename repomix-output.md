@@ -60,7 +60,6 @@ app/Enums/StatusShippingRequestEnum.php
 app/Enums/StatusUserEnum.php
 app/Enums/user/UserRoleEnum.php
 app/Enums/VendorDocumentTypeEnum.php
-app/Events/MessageSent.php
 app/Events/NewMessage.php
 app/Events/NotificationBadgeUpdated.php
 app/Exceptions/CustomResponseException.php
@@ -96,6 +95,7 @@ app/Http/Controllers/Dashboard/CustomFieldController.php
 app/Http/Controllers/Dashboard/DashboardController.php
 app/Http/Controllers/Dashboard/RequestResponseManagement/RequestResponseManagementController.php
 app/Http/Controllers/Dashboard/RequestsManagement/RequestManagementController.php
+app/Http/Controllers/Dashboard/Settings/NotificationEmailController.php
 app/Http/Controllers/Dashboard/ShippingRequestManagement/ShippingRequestManagementController.php
 app/Http/Controllers/Dashboard/VendorsManagement/JoinRequestVendorController.php
 app/Http/Controllers/Dashboard/VendorsManagement/VendorManagementController.php
@@ -151,13 +151,16 @@ app/Http/Services/Shared/CategoryService.php
 app/Http/Services/Shared/CityService.php
 app/Http/Services/Shared/ComplaintService.php
 app/Http/Services/Shared/CustomFieldService.php
+app/Http/Services/Shared/EmailService.php
 app/Http/Services/Shared/RegisterVendorService.php
 app/Http/Services/Shared/ShippingService.php
 app/Http/Services/User/MyRequests/MyRequestUserService.php
 app/Http/Services/User/ProfileUserService.php
 app/Http/Services/User/Requests/RequestService.php
 app/Interfaces/RepositoryInterface.php
+app/Jobs/SendNewShippingRequestNotificationJob.php
 app/Models/Admin.php
+app/Models/AdminNotificationEmail.php
 app/Models/AdsBanner.php
 app/Models/BrandCar.php
 app/Models/CacheStaticDataVersion.php
@@ -197,6 +200,7 @@ app/Providers/AppServiceProvider.php
 app/Rules/DecimalFormatRule.php
 app/Rules/RequiredBrandIfCategoryHasBrandRule.php
 app/Rules/SaudiPhoneNumberRule.php
+app/Services/EmailService.php
 app/Traits/HandlesDatatablesTrait.php
 app/Traits/NotificationsTrait.php
 app/Utils/CacheUtils.php
@@ -268,6 +272,7 @@ database/migrations/2026_09_05_000000_update_new_spare_parts_category_icon.php
 database/migrations/2026_09_05_000001_update_new_spare_parts_category_icon_again.php
 database/migrations/2026_09_05_023700_update_new_spare_parts_icon.php
 database/migrations/2026_09_05_032200_update_categories_cache_version.php
+database/migrations/2026_09_09_144900_create_admin_notification_emails_table.php
 lang/ar/auth.php
 lang/ar/exceptions.php
 lang/ar/messages.php
@@ -366,6 +371,7 @@ resources/views/dashboard/requests-management/partials/request-details-section.b
 resources/views/dashboard/requests-management/partials/user-details-request-section.blade.php
 resources/views/dashboard/requests-management/show.blade.php
 resources/views/dashboard/response-management/index.blade.php
+resources/views/dashboard/settings/notification-emails/index.blade.php
 resources/views/dashboard/shipping-request-management/index.blade.php
 resources/views/dashboard/shipping-request-management/partails/details-shipping-section.blade.php
 resources/views/dashboard/shipping-request-management/partails/shipping-section.blade.php
@@ -461,6 +467,23 @@ vite.config.js
 23: Homestead.json
 24: Homestead.yaml
 25: Thumbs.db
+```
+
+## File: .repomixignore
+```
+ 1: vendor/
+ 2: node_modules/
+ 3: storage/
+ 4: bootstrap/cache/
+ 5: public/storage/
+ 6: public/build/
+ 7: tests/
+ 8: database/factories/
+ 9: database/seeders/
+10: *.lock
+11: *.log
+12: .env*
+13: .git/
 ```
 
 ## File: app/Enums/CategoryHasBrandTypeEnum.php
@@ -723,112 +746,6 @@ vite.config.js
 7:     case National_Id = 'National_Id';
 8:     case Commercial_Record = 'Commercial_Record';
 9: }
-```
-
-## File: app/Events/MessageSent.php
-```php
- 1: <?php
- 2: 
- 3: namespace App\Events;
- 4: 
- 5: use Illuminate\Broadcasting\Channel;
- 6: use Illuminate\Broadcasting\InteractsWithSockets;
- 7: use Illuminate\Broadcasting\PresenceChannel;
- 8: use Illuminate\Broadcasting\PrivateChannel;
- 9: use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
-10: use Illuminate\Foundation\Events\Dispatchable;
-11: use Illuminate\Queue\SerializesModels;
-12: 
-13: class MessageSent  implements ShouldBroadcastNow
-14: {
-15:     use Dispatchable, InteractsWithSockets, SerializesModels;
-16: 
-17: 
-18: 
-19:     public $message;
-20:     public $fromUserId;
-21:     public $toUserId;
-22: 
-23:     public function __construct($fromUserId, $toUserId, $message)
-24:     {
-25:         $this->fromUserId = $fromUserId;
-26:         $this->toUserId = $toUserId;
-27:         $this->message = $message;
-28:     }
-29: 
-30:     // Broadcast on a private channel unique to the conversation
-31:     public function broadcastOn(): array
-32:     {
-33:         return [
-34:             new PrivateChannel("private-chat.{$this->fromUserId}.{$this->toUserId}")
-35:         ];
-36:     }
-37: 
-38:     public function broadcastAs()
-39:     {
-40:         return 'message.sent';
-41:     }
-42: 
-43:     public function broadcastWith()
-44:     {
-45:         return [
-46:             'from' => $this->fromUserId,
-47:             'to' => $this->toUserId,
-48:             'message' => $this->message,
-49:         ];
-50:     }
-51: }
-```
-
-## File: app/Events/NewMessage.php
-```php
- 1: <?php
- 2: 
- 3: namespace App\Events;
- 4: 
- 5: use App\Models\MessageConversation;
- 6: use Illuminate\Broadcasting\Channel;
- 7: use Illuminate\Broadcasting\InteractsWithSockets;
- 8: use Illuminate\Broadcasting\PresenceChannel;
- 9: use Illuminate\Broadcasting\PrivateChannel;
-10: use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-11: use Illuminate\Foundation\Events\Dispatchable;
-12: use Illuminate\Queue\SerializesModels;
-13: 
-14: class NewMessage implements ShouldBroadcast
-15: {
-16:     use Dispatchable, SerializesModels;
-17: 
-18: 
-19:     public $message;
-20:     public $conversationId;
-21: 
-22:     public function __construct($conversationId, $message)
-23:     {
-24:         $this->conversationId = $conversationId;
-25:         $this->message = $message;
-26:     }
-27: 
-28:     public function broadcastOn(): array
-29:     {
-30:         return [new PrivateChannel("private-conversation.{$this->conversationId}")];
-31:     }
-32: 
-33:     public function broadcastAs()
-34:     {
-35:         return 'message.sent';
-36:     }
-37: 
-38:     public function broadcastWith()
-39:     {
-40:         return [
-41:             'id' => $this->message->id ?? null,
-42:             'sender_id' => $this->message->sender_id ?? null,
-43:             'body' => $this->message->body ?? $this->message,
-44:             'created_at' => $this->message->created_at?->toDateTimeString(),
-45:         ];
-46:     }
-47: }
 ```
 
 ## File: app/Events/NotificationBadgeUpdated.php
@@ -4512,155 +4429,6 @@ vite.config.js
 29: }
 ```
 
-## File: app/Http/Services/Dashboard/ShippingRequestManagement/ShippingRequestManagementService.php
-```php
-  1: <?php
-  2: 
-  3: namespace App\Http\Services\Dashboard\ShippingRequestManagement;
-  4: 
-  5: use App\Enums\StatusShippingRequestEnum;
-  6: use App\Http\Repositories\Dashboard\ShippingRequestManagement\ShippingRequestManagementRepository;
-  7: use App\Http\Services\BaseService;
-  8: use App\Models\ShippingRequest;
-  9: use App\Utils\ConfigUtils;
- 10: use App\Utils\OTOServiceUtils;
- 11: use Exception;
- 12: use Illuminate\Http\Request;
- 13: use Illuminate\Support\Facades\Http;
- 14: use Illuminate\Support\Facades\Log;
- 15: 
- 16: class ShippingRequestManagementService extends BaseService
- 17: {
- 18:     public function __construct(protected ShippingRequestManagementRepository $repo, protected OTOServiceUtils $otoServiceUtils) {}
- 19: 
- 20:     public function index(Request $request)
- 21:     {
- 22:         $searchValue = $request->input('search.value');
- 23: 
- 24:         $recordsCount =  $this->repo->getTotalRecordsCount(ShippingRequest::class);
- 25:         $recordsCountwithFilter = $this->repo->recordsCountShippingRequestWithFilter($searchValue);
- 26:         $records = $this->repo->index($request, $searchValue);
- 27: 
- 28:         return $this->repo->formatResponseDataTables(
- 29:             draw: $request->input('draw'),
- 30:             recordsCount: $recordsCount,
- 31:             recordsCountwithFilter: $recordsCountwithFilter,
- 32:             records: $records
- 33:         );
- 34:     }
- 35:     public function show($id)
- 36:     {
- 37:         $this->validate(['id' => $id], [
- 38:             'id' => 'required|integer|exists:shipping_requests,id',
- 39:         ]);
- 40: 
- 41:         $shippingRequest = $this->repo->show($id);
- 42:         $accessToken = $this->otoServiceUtils->getAccessTokenOTO();
- 43:         $cheapestCompany = null;
- 44:         if ($shippingRequest->is_user_confirmed && $shippingRequest->status == StatusShippingRequestEnum::Pending) {
- 45:             $cheapestCompany = $this->otoServiceUtils->checkDeliveryFeeAndGetCheapest(
- 46:                 accessToken: $accessToken,
- 47:                 originCity: $shippingRequest->city_origin_vendor,
- 48:                 destinationCity: $shippingRequest->city_origin_dimensions,
- 49:                 width: $shippingRequest->width,
- 50:                 length: $shippingRequest->length,
- 51:                 height: $shippingRequest->height,
- 52:                 weight: $shippingRequest->weight
- 53:             );
- 54:         }
- 55:         Log::info($cheapestCompany);
- 56: 
- 57:         return [
- 58:             'shippingRequest' => $shippingRequest,
- 59:             'cheapestCompany' => $cheapestCompany,
- 60:         ];
- 61:     }
- 62: 
- 63:     public function createOrderShippingRequest(Request $request)
- 64:     {
- 65:         $this->validate($request->all(), [
- 66:             'shippingRequestId' => 'required|integer|exists:shipping_requests,id',
- 67:             'deliveryOptionId' => 'required',
- 68:         ]);
- 69: 
- 70:         $shippingRequest = $this->repo->getShippingRequestDetailById($request->input('shippingRequestId'));
- 71:         Log::info('Shipping Request Details: ', ['customer_name' => $shippingRequest->customer_name, 'company_sender_name' => $shippingRequest->company_sender_name]);
- 72:         $accessToken = $this->otoServiceUtils->getAccessTokenOTO();
- 73:         $body = [
- 74:             "orderId" =>  '766576',
- 75:             "createShipment" => true, // إنشاء الشحنة مباشرة
- 76:             "payment_method" => "cod", // الدفع عند الاستلام
- 77:             "amount" => ConfigUtils::getAmountRateAppForCharge(),
- 78:             "amount_due" => 0,
- 79:             "deliveryOptionId" => $request->input('deliveryOptionId'),
- 80:             // "brandId" => 1233,
- 81:             // "customsValue" => "12",
- 82:             // "customsCurrency" => "SAR",
- 83:             // "shippingAmount" => 20,
- 84:             // "subtotal" => 200,
- 85:             "currency" => "SAR",
- 86:             // "shippingNotes" => "be careful. it is fragile",
- 87:             // "packageSize" => "small",
- 88:             // "packageCount" => 2,
- 89:             // "packageWeight" => 1,
- 90:             // "boxWidth" => 10,
- 91:             // "boxLength" => 10,
- 92:             // "boxHeight" => 10,
- 93:             // "orderDate" => now()->format('d/m/Y H:i'),
- 94:             // "deliverySlotDate" => now()->addDay()->format('d/m/Y'),
- 95:             // "deliverySlotTo" => "12pm",
- 96:             // "deliverySlotFrom" => "2:30pm",
- 97:             "senderName" => $shippingRequest->company_sender_name ?? '',
- 98:             "senderInformation" => [
- 99:                 "senderFullName" => $shippingRequest->company_sender_name ?? '',
-100:                 "senderMobile" => $shippingRequest->phone_origin_vendor ?? '',
-101:                 // "senderEmail" => "test@example.com",
-102:                 "senderCountry" => "SA",
-103:                 "senderCity" => $shippingRequest->city_origin_vendor ?? '',
-104:                 "senderAddressLine" => $shippingRequest->address_origin_vendor ?? ''
-105:             ],
-106:             "customer" => [
-107:                 "name" => $shippingRequest->company_sender_name ?? '',
-108:                 // "email" => "test@test.com",
-109:                 "mobile" => $shippingRequest->phone_origin_dimensions ?? '',
-110:                 "address" => $shippingRequest->address_origin_dimensions ?? '',
-111:                 // "district" => "Al Mughaisilah Dist.",
-112:                 "city" => $shippingRequest->city_origin_dimensions ?? '',
-113:                 "country" => "SA",
-114:                 // "postcode" => "42315"
-115:             ],
-116:             "items" => [
-117:                 [
-118:                     // "productId" => 112,
-119:                     "name" => "box 1",
-120:                     "price" => ConfigUtils::getAmountRateAppForCharge(),
-121:                     // "rowTotal" => 5,
-122:                     // "taxAmount" => 0,
-123:                     "quantity" => 1,
-124:                     // "sku" => "test-product",
-125:                     // "currency" => "SAR"
-126:                 ],
-127:             ]
-128:         ];
-129:         // $shippingRequest->update([
-130:         //     'status' => StatusShippingRequestEnum::InProgress,
-131:         // ]);
-132:         $createOrderResponse = $this->otoServiceUtils->createOrder($body, $accessToken);
-133:         // array(
-134:         //     'success' => true,
-135:         //     'otoId' => 25014681,
-136:         // );
-137:         Log::info($createOrderResponse);
-138:         if ($createOrderResponse['success']) {
-139:             $shippingRequest->update([
-140:                 'status' => StatusShippingRequestEnum::InProgress,
-141:                 'oto_id' => $createOrderResponse['otoId'],
-142:             ]);
-143:         }
-144:     }
-145: }
-```
-
 ## File: app/Http/Services/Dashboard/VendorsManagement/JoinRequestVendorService.php
 ```php
  1: <?php
@@ -7067,6 +6835,139 @@ vite.config.js
 5: ];
 ```
 
+## File: config/app.php
+```php
+  1: <?php
+  2: 
+  3: return [
+  4: 
+  5:     /*
+  6:     |--------------------------------------------------------------------------
+  7:     | Application Name
+  8:     |--------------------------------------------------------------------------
+  9:     |
+ 10:     | This value is the name of your application, which will be used when the
+ 11:     | framework needs to place the application's name in a notification or
+ 12:     | other UI elements where an application name needs to be displayed.
+ 13:     |
+ 14:     */
+ 15: 
+ 16:     'name' => env('APP_NAME', 'Laravel'),
+ 17: 
+ 18:     /*
+ 19:     |--------------------------------------------------------------------------
+ 20:     | Application Environment
+ 21:     |--------------------------------------------------------------------------
+ 22:     |
+ 23:     | This value determines the "environment" your application is currently
+ 24:     | running in. This may determine how you prefer to configure various
+ 25:     | services the application utilizes. Set this in your ".env" file.
+ 26:     |
+ 27:     */
+ 28: 
+ 29:     'env' => env('APP_ENV', 'production'),
+ 30: 
+ 31:     /*
+ 32:     |--------------------------------------------------------------------------
+ 33:     | Application Debug Mode
+ 34:     |--------------------------------------------------------------------------
+ 35:     |
+ 36:     | When your application is in debug mode, detailed error messages with
+ 37:     | stack traces will be shown on every error that occurs within your
+ 38:     | application. If disabled, a simple generic error page is shown.
+ 39:     |
+ 40:     */
+ 41: 
+ 42:     'debug' => (bool) env('APP_DEBUG', false),
+ 43: 
+ 44:     /*
+ 45:     |--------------------------------------------------------------------------
+ 46:     | Application URL
+ 47:     |--------------------------------------------------------------------------
+ 48:     |
+ 49:     | This URL is used by the console to properly generate URLs when using
+ 50:     | the Artisan command line tool. You should set this to the root of
+ 51:     | the application so that it's available within Artisan commands.
+ 52:     |
+ 53:     */
+ 54: 
+ 55:     'url' => filter_var(env('APP_URL'), FILTER_VALIDATE_URL) ? env('APP_URL') : 'http://localhost',
+ 56: 
+ 57:     /*
+ 58:     |--------------------------------------------------------------------------
+ 59:     | Application Timezone
+ 60:     |--------------------------------------------------------------------------
+ 61:     |
+ 62:     | Here you may specify the default timezone for your application, which
+ 63:     | will be used by the PHP date and date-time functions. The timezone
+ 64:     | is set to "UTC" by default as it is suitable for most use cases.
+ 65:     |
+ 66:     */
+ 67: 
+ 68:     'timezone' => env('APP_TIMEZONE', 'Asia/Riyadh'),
+ 69:     'user_timezone' => env('APP_USER_TIMEZONE', 'Asia/Riyadh'),
+ 70: 
+ 71:     /*
+ 72:     |--------------------------------------------------------------------------
+ 73:     | Application Locale Configuration
+ 74:     |--------------------------------------------------------------------------
+ 75:     |
+ 76:     | The application locale determines the default locale that will be used
+ 77:     | by Laravel's translation / localization methods. This option can be
+ 78:     | set to any locale for which you plan to have translation strings.
+ 79:     |
+ 80:     */
+ 81: 
+ 82:     'locale' => env('APP_LOCALE', 'ar'),
+ 83: 
+ 84:     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
+ 85: 
+ 86:     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+ 87: 
+ 88:     'supported_locales' => ['ar', 'en'],
+ 89: 
+ 90:     /*
+ 91:     |--------------------------------------------------------------------------
+ 92:     | Encryption Key
+ 93:     |--------------------------------------------------------------------------
+ 94:     |
+ 95:     | This key is utilized by Laravel's encryption services and should be set
+ 96:     | to a random, 32 character string to ensure that all encrypted values
+ 97:     | are secure. You should do this prior to deploying the application.
+ 98:     |
+ 99:     */
+100: 
+101:     'cipher' => 'AES-256-CBC',
+102: 
+103:     'key' => env('APP_KEY'),
+104: 
+105:     'previous_keys' => [
+106:         ...array_filter(
+107:             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))
+108:         ),
+109:     ],
+110: 
+111:     /*
+112:     |--------------------------------------------------------------------------
+113:     | Maintenance Mode Driver
+114:     |--------------------------------------------------------------------------
+115:     |
+116:     | These configuration options determine the driver used to determine and
+117:     | manage Laravel's "maintenance mode" status. The "cache" driver will
+118:     | allow maintenance mode to be controlled across multiple machines.
+119:     |
+120:     | Supported drivers: "file", "cache"
+121:     |
+122:     */
+123: 
+124:     'maintenance' => [
+125:         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
+126:         'store' => env('APP_MAINTENANCE_STORE', 'database'),
+127:     ],
+128: 
+129: ];
+```
+
 ## File: config/auth.php
 ```php
   1: <?php
@@ -7790,128 +7691,6 @@ vite.config.js
 130:     ],
 131: 
 132: ];
-```
-
-## File: config/mail.php
-```php
-  1: <?php
-  2: 
-  3: return [
-  4: 
-  5:     /*
-  6:     |--------------------------------------------------------------------------
-  7:     | Default Mailer
-  8:     |--------------------------------------------------------------------------
-  9:     |
- 10:     | This option controls the default mailer that is used to send all email
- 11:     | messages unless another mailer is explicitly specified when sending
- 12:     | the message. All additional mailers can be configured within the
- 13:     | "mailers" array. Examples of each type of mailer are provided.
- 14:     |
- 15:     */
- 16: 
- 17:     'default' => env('MAIL_MAILER', 'log'),
- 18: 
- 19:     /*
- 20:     |--------------------------------------------------------------------------
- 21:     | Mailer Configurations
- 22:     |--------------------------------------------------------------------------
- 23:     |
- 24:     | Here you may configure all of the mailers used by your application plus
- 25:     | their respective settings. Several examples have been configured for
- 26:     | you and you are free to add your own as your application requires.
- 27:     |
- 28:     | Laravel supports a variety of mail "transport" drivers that can be used
- 29:     | when delivering an email. You may specify which one you're using for
- 30:     | your mailers below. You may also add additional mailers if needed.
- 31:     |
- 32:     | Supported: "smtp", "sendmail", "mailgun", "ses", "ses-v2",
- 33:     |            "postmark", "resend", "log", "array",
- 34:     |            "failover", "roundrobin"
- 35:     |
- 36:     */
- 37: 
- 38:     'mailers' => [
- 39: 
- 40:         'smtp' => [
- 41:             'transport' => 'smtp',
- 42:             'scheme' => env('MAIL_SCHEME'),
- 43:             'url' => env('MAIL_URL'),
- 44:             'host' => env('MAIL_HOST', '127.0.0.1'),
- 45:             'port' => env('MAIL_PORT', 2525),
- 46:             'username' => env('MAIL_USERNAME'),
- 47:             'password' => env('MAIL_PASSWORD'),
- 48:             'timeout' => null,
- 49:             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
- 50:         ],
- 51: 
- 52:         'ses' => [
- 53:             'transport' => 'ses',
- 54:         ],
- 55: 
- 56:         'postmark' => [
- 57:             'transport' => 'postmark',
- 58:             // 'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID'),
- 59:             // 'client' => [
- 60:             //     'timeout' => 5,
- 61:             // ],
- 62:         ],
- 63: 
- 64:         'resend' => [
- 65:             'transport' => 'resend',
- 66:         ],
- 67: 
- 68:         'sendmail' => [
- 69:             'transport' => 'sendmail',
- 70:             'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -bs -i'),
- 71:         ],
- 72: 
- 73:         'log' => [
- 74:             'transport' => 'log',
- 75:             'channel' => env('MAIL_LOG_CHANNEL'),
- 76:         ],
- 77: 
- 78:         'array' => [
- 79:             'transport' => 'array',
- 80:         ],
- 81: 
- 82:         'failover' => [
- 83:             'transport' => 'failover',
- 84:             'mailers' => [
- 85:                 'smtp',
- 86:                 'log',
- 87:             ],
- 88:             'retry_after' => 60,
- 89:         ],
- 90: 
- 91:         'roundrobin' => [
- 92:             'transport' => 'roundrobin',
- 93:             'mailers' => [
- 94:                 'ses',
- 95:                 'postmark',
- 96:             ],
- 97:             'retry_after' => 60,
- 98:         ],
- 99: 
-100:     ],
-101: 
-102:     /*
-103:     |--------------------------------------------------------------------------
-104:     | Global "From" Address
-105:     |--------------------------------------------------------------------------
-106:     |
-107:     | You may wish for all emails sent by your application to be sent from
-108:     | the same address. Here you may specify a name and address that is
-109:     | used globally for all emails that are sent by your application.
-110:     |
-111:     */
-112: 
-113:     'from' => [
-114:         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-115:         'name' => env('MAIL_FROM_NAME', 'Example'),
-116:     ],
-117: 
-118: ];
 ```
 
 ## File: config/permission.php
@@ -12853,103 +12632,6 @@ vite.config.js
 136: </nav>
 ```
 
-## File: resources/views/dashboard/included/sidebar.blade.php
-```php
- 1: @use('App\Enums\PermissionEnum')
- 2: <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
- 3:     <div class="sidebar-brand"> <a href="{{ route('dashboard') }}" class="brand-link">
- 4:             <span class="brand-text fs-3 fw-semibold">لوحة تحكم الإدارة</span> </a>
- 5:     </div>
- 6:     <div class="sidebar-wrapper">
- 7:         <nav class="mt-2">
- 8:             <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu" data-accordion="false">
- 9:                 <li class="nav-item"> <a href="{{ route('dashboard') }}"
-10:                         class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-11:                         <i class="nav-icon fa fa-house"></i>
-12:                         <p>الرئيسية</p>
-13:                     </a>
-14:                 </li>
-15:                 <li class="nav-item"> <a href="#" class="nav-link">
-16:                         <i class="nav-icon fa-solid fa-gear"></i>
-17:                         <p>الإعدادات</p>
-18:                     </a>
-19:                 </li>
-20:                 <li class="nav-item"> <a href="{{ route('dashboard.categories.index') }}"
-21:                         class="nav-link {{ request()->routeIs('dashboard.categories.*') ? 'active' : '' }}">
-22:                         <i class="nav-icon fa-solid fa-layer-group"></i>
-23:                         <p> الأقسام</p>
-24:                     </a>
-25:                 </li>
-26: 
-27:                 <li class="nav-item"> <a href="{{ route('dashboard.customers.index') }}"
-28:                         class="nav-link {{ request()->routeIs('dashboard.customers.*') ? 'active' : '' }}">
-29:                         <i class="nav-icon fa-solid fa-users"></i>
-30:                         <p> إدارة العملاء</p>
-31:                     </a>
-32:                 </li>
-33: 
-34:                 <li class="nav-item {{ request()->routeIs('dashboard.vendors-management.*') ? 'menu-open' : '' }}">
-35:                     <a href="#"
-36:                         class="nav-link {{ request()->routeIs('dashboard.vendors-management.*') ? 'active' : '' }}"> <i
-37:                             class="nav-icon fa-solid fa-building"></i>
-38:                         <p>إدارة الشركات <i class="nav-arrow bi bi-chevron-right"></i></p>
-39:                     </a>
-40:                     <ul class="nav nav-treeview">
-41:                         <li class="nav-item"> <a href="{{ route('dashboard.vendors-management.vendors.index') }}"
-42:                                 class="nav-link {{ request()->routeIs('dashboard.vendors-management.vendors.*') ? 'active' : '' }}">
-43:                                 <i class="nav-icon bi bi-circle"></i>
-44:                                 <p>الشركات</p>
-45:                             </a>
-46:                         </li>
-47:                         <li class="nav-item"> <a href="{{ route('dashboard.vendors-management.join-requests.index') }}"
-48:                                 class="nav-link {{ request()->routeIs('dashboard.vendors-management.join-requests.*') ? 'active' : '' }}">
-49:                                 <i class="nav-icon bi bi-circle"></i>
-50:                                 <p>طلبات الإنضمام</p>
-51:                             </a>
-52:                         </li>
-53:                     </ul>
-54:                 </li>
-55: 
-56:                 <li class="nav-item"> <a href="{{ route('dashboard.requests-management.index') }}"
-57:                         class="nav-link {{ request()->routeIs('dashboard.requests-management.*') ? 'active' : '' }}">
-58:                         <i class="nav-icon fa-solid fa-clipboard"></i>
-59:                         <p>الطلبات وردود الشركات</p>
-60:                     </a>
-61:                 </li>
-62: 
-63:                 <li class="nav-item"> <a href="{{ route('dashboard.shipping-request-management.index') }}"
-64:                         class="nav-link {{ request()->routeIs('dashboard.shipping-request-management.*') ? 'active' : '' }}">
-65:                         <i class="nav-icon fa-solid fa-truck-fast"></i>
-66:                         <p>إدارة طلبات الشحن</p>
-67:                     </a>
-68:                 </li>
-69: 
-70:                 <li class="nav-item"> <a href="#" class="nav-link">
-71:                         <i class="nav-icon fa-solid fa-money-check-dollar"></i>
-72:                         <p>نظام العمولات</p>
-73:                     </a>
-74:                 </li>
-75: 
-76:                 <li class="nav-item"> <a href="{{ route('dashboard.complaint-management.complaints') }}"
-77:                         class="nav-link {{ request()->routeIs('dashboard.complaint-management.*') ? 'active' : '' }}">
-78:                         <i class="nav-icon fa-solid fa-flag"></i>
-79:                         <p>الشكاوي</p>
-80:                     </a>
-81:                 </li>
-82: 
-83:                 <li class="nav-item"> <a href="{{ route('dashboard.logs.index') }}"
-84:                         class="nav-link {{ request()->routeIs('dashboard.logs.*') ? 'active' : '' }}">
-85:                         <i class="nav-icon fa-solid fa-note-sticky"></i>
-86:                         <p>Logs</p>
-87:                     </a>
-88:                 </li>
-89: 
-90:             </ul>
-91:         </nav>
-92:     </div>
-93: </aside>
-```
-
 ## File: resources/views/dashboard/included/toast-message.blade.php
 ```php
  1: <script>
@@ -15367,21 +15049,342 @@ vite.config.js
 11: });
 ```
 
-## File: .repomixignore
+## File: app/Events/NewMessage.php
+```php
+ 1: <?php
+ 2: 
+ 3: namespace App\Events;
+ 4: 
+ 5: use App\Models\MessageConversation;
+ 6: use Illuminate\Broadcasting\Channel;
+ 7: use Illuminate\Broadcasting\InteractsWithSockets;
+ 8: use Illuminate\Broadcasting\PresenceChannel;
+ 9: use Illuminate\Broadcasting\PrivateChannel;
+10: use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+11: use Illuminate\Foundation\Events\Dispatchable;
+12: use Illuminate\Queue\SerializesModels;
+13: 
+14: class NewMessage implements ShouldBroadcast
+15: {
+16:     use Dispatchable, SerializesModels;
+17: 
+18: 
+19:     public $message;
+20:     public $conversationId;
+21: 
+22:     public function __construct($conversationId, $message)
+23:     {
+24:         $this->conversationId = $conversationId;
+25:         $this->message = $message;
+26:     }
+27: 
+28:     public function broadcastOn(): array
+29:     {
+30:         return [new PrivateChannel("conversation.{$this->conversationId}")];
+31:     }
+32: 
+33:     public function broadcastAs()
+34:     {
+35:         return 'message.sent';
+36:     }
+37: 
+38:     public function broadcastWith()
+39:     {
+40:         return [
+41:             'id' => $this->message->id ?? null,
+42:             'sender_id' => $this->message->sender_id ?? null,
+43:             'body' => $this->message->body ?? null,
+44:             'image' => $this->message->image ?? null,
+45:             'is_shipping_request' => (bool) ($this->message->is_shipping_request ?? false),
+46:             'conversation_id' => (int) $this->conversationId,
+47:             'date_sent' => $this->message->created_at?->format('h:i a') ?? '',
+48:             'created_at' => $this->message->created_at?->toDateTimeString(),
+49:         ];
+50:     }
+51: }
 ```
- 1: vendor/
- 2: node_modules/
- 3: storage/
- 4: bootstrap/cache/
- 5: public/storage/
- 6: public/build/
- 7: tests/
- 8: database/factories/
- 9: database/seeders/
-10: *.lock
-11: *.log
-12: .env*
-13: .git/
+
+## File: app/Http/Controllers/API/NotificationBadgeController.php
+```php
+  1: <?php
+  2: 
+  3: namespace App\Http\Controllers\API;
+  4: 
+  5: use App\Http\Controllers\Controller;
+  6: use App\Models\Conversation;
+  7: use App\Models\MessageConversation;
+  8: use App\Models\Vendor;
+  9: use Illuminate\Http\Request;
+ 10: use Illuminate\Support\Facades\DB;
+ 11: use Illuminate\Support\Facades\Log;
+ 12: 
+ 13: class NotificationBadgeController extends Controller
+ 14: {
+ 15:     /**
+ 16:      * Get unread notification counts grouped by section and per-entity.
+ 17:      */
+ 18:     public function unreadCounts(Request $request)
+ 19:     {
+ 20:         try {
+ 21:             $user = $request->user();
+ 22:             if (!$user) {
+ 23:                 return response()->json([
+ 24:                     'success' => false,
+ 25:                     'message' => 'Unauthenticated'
+ 26:                 ], 401);
+ 27:             }
+ 28: 
+ 29:             $userId = $user->id;
+ 30:             $isVendor = Vendor::where('user_id', $userId)->exists();
+ 31: 
+ 32:             // Fetch unread notifications collection safely
+ 33:             $unreadNotifications = $user->unreadNotifications()->get();
+ 34: 
+ 35:             // 1. Unread Customer Requests (For Vendors)
+ 36:             $customerRequestsCount = 0;
+ 37:             $customerRequestsEntityCounts = [];
+ 38: 
+ 39:             // 2. Unread Company Responses (For Customers)
+ 40:             $companyResponsesCount = 0;
+ 41:             $companyResponsesEntityCounts = [];
+ 42: 
+ 43:             foreach ($unreadNotifications as $item) {
+ 44:                 $data = is_array($item->data) ? $item->data : (json_decode($item->data, true) ?? []);
+ 45:                 $category = (string)($data['category'] ?? '');
+ 46:                 $title = (string)($data['title'] ?? '');
+ 47:                 $body = (string)($data['body'] ?? '');
+ 48:                 $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
+ 49: 
+ 50:                 if ($category === 'company_responses' || str_contains($title, 'رد') || str_contains($body, 'الرد')) {
+ 51:                     $companyResponsesCount++;
+ 52:                     if ($targetId !== '') {
+ 53:                         $companyResponsesEntityCounts[$targetId] = ($companyResponsesEntityCounts[$targetId] ?? 0) + 1;
+ 54:                     }
+ 55:                 } elseif ($category === 'customer_requests' || str_contains($title, 'طلب جديد') || str_contains($body, 'طلب جديد')) {
+ 56:                     $customerRequestsCount++;
+ 57:                     if ($targetId !== '') {
+ 58:                         $customerRequestsEntityCounts[$targetId] = ($customerRequestsEntityCounts[$targetId] ?? 0) + 1;
+ 59:                     }
+ 60:                 }
+ 61:             }
+ 62: 
+ 63:             // Sync section count strictly with specific unread entity counts if present
+ 64:             if (!empty($customerRequestsEntityCounts)) {
+ 65:                 $customerRequestsCount = array_sum($customerRequestsEntityCounts);
+ 66:             }
+ 67:             if (!empty($companyResponsesEntityCounts)) {
+ 68:                 $companyResponsesCount = array_sum($companyResponsesEntityCounts);
+ 69:             }
+ 70: 
+ 71:             // 3. Unread Conversations (For both Users & Vendors)
+ 72:             $userConversationIds = Conversation::where('user_id', $userId)
+ 73:                 ->orWhere('vendor_id', $userId)
+ 74:                 ->pluck('id');
+ 75: 
+ 76:             $conversationsCount = 0;
+ 77:             $conversationEntityCounts = [];
+ 78:             $requestConversationsEntityCounts = [];
+ 79: 
+ 80:             if ($userConversationIds->isNotEmpty()) {
+ 81:                 $rawCounts = MessageConversation::join('conversations', 'message_conversations.conversation_id', '=', 'conversations.id')
+ 82:                     ->whereIn('message_conversations.conversation_id', $userConversationIds)
+ 83:                     ->where('message_conversations.sender_id', '!=', $userId)
+ 84:                     ->where(function ($q) {
+ 85:                         $q->where('message_conversations.read', 0)->orWhere('message_conversations.read', false)->orWhereNull('message_conversations.read');
+ 86:                     })
+ 87:                     ->select('message_conversations.conversation_id', 'conversations.request_id', DB::raw('count(*) as count'))
+ 88:                     ->groupBy('message_conversations.conversation_id', 'conversations.request_id')
+ 89:                     ->get();
+ 90: 
+ 91:                 foreach ($rawCounts as $row) {
+ 92:                     $conversationEntityCounts[(string)$row->conversation_id] = (int)$row->count;
+ 93:                     if ($row->request_id) {
+ 94:                         $requestConversationsEntityCounts[(string)$row->request_id] = ($requestConversationsEntityCounts[(string)$row->request_id] ?? 0) + (int)$row->count;
+ 95:                     }
+ 96:                     $conversationsCount += (int)$row->count;
+ 97:                 }
+ 98:             }
+ 99: 
+100:             return response()->json([
+101:                 'success' => true,
+102:                 'data' => [
+103:                     'customer_requests' => (int)$customerRequestsCount,
+104:                     'company_responses' => (int)$companyResponsesCount,
+105:                     'conversations' => (int)$conversationsCount,
+106:                     'sections' => [
+107:                         'customer_requests' => (int)$customerRequestsCount,
+108:                         'company_responses' => (int)$companyResponsesCount,
+109:                         'conversations' => (int)$conversationsCount,
+110:                     ],
+111:                     'entities' => [
+112:                         'conversations' => $conversationEntityCounts,
+113:                         'request_conversations' => $requestConversationsEntityCounts,
+114:                         'customer_requests' => $customerRequestsEntityCounts,
+115:                         'company_responses' => $companyResponsesEntityCounts,
+116:                     ]
+117:                 ]
+118:             ]);
+119:         } catch (\Throwable $e) {
+120:             Log::error("[NotificationBadgeController] unreadCounts ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+121:             return response()->json([
+122:                 'success' => false,
+123:                 'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
+124:             ], 500);
+125:         }
+126:     }
+127: 
+128:     /**
+129:      * Mark a specific entity (e.g. conversation_id or request_id) as read.
+130:      */
+131:     public function markEntityRead(Request $request)
+132:     {
+133:         try {
+134:             $user = $request->user();
+135:             if (!$user) {
+136:                 return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+137:             }
+138: 
+139:             $section = $request->input('section');
+140:             $entityId = $request->input('entity_id');
+141:             $userId = $user->id;
+142: 
+143:             if ($section === 'conversations' && $entityId) {
+144:                 MessageConversation::where('conversation_id', $entityId)
+145:                     ->where('sender_id', '!=', $userId)
+146:                     ->update(['read' => 1]);
+147:             } elseif ($section === 'customer_requests' || $section === 'company_responses') {
+148:                 if ($entityId) {
+149:                     $notifications = DB::table('notifications')
+150:                         ->where('notifiable_type', get_class($user))
+151:                         ->where('notifiable_id', $userId)
+152:                         ->whereNull('read_at')
+153:                         ->get();
+154: 
+155:                     $foundSpecific = false;
+156:                     foreach ($notifications as $notif) {
+157:                         $data = json_decode($notif->data, true) ?? [];
+158:                         $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
+159:                         if ($targetId === (string)$entityId) {
+160:                             DB::table('notifications')
+161:                                 ->where('id', $notif->id)
+162:                                 ->update(['read_at' => now()]);
+163:                             $foundSpecific = true;
+164:                         }
+165:                     }
+166: 
+167:                     if (!$foundSpecific && $notifications->isNotEmpty()) {
+168:                         DB::table('notifications')
+169:                             ->where('id', $notifications->first()->id)
+170:                             ->update(['read_at' => now()]);
+171:                     }
+172:                 } else {
+173:                     DB::table('notifications')
+174:                         ->where('notifiable_type', get_class($user))
+175:                         ->where('notifiable_id', $userId)
+176:                         ->whereNull('read_at')
+177:                         ->update(['read_at' => now()]);
+178:                 }
+179:             }
+180: 
+181:             return $this->unreadCounts($request);
+182:         } catch (\Throwable $e) {
+183:             Log::error("[NotificationBadgeController] markEntityRead ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+184:             return response()->json([
+185:                 'success' => false,
+186:                 'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
+187:             ], 500);
+188:         }
+189:     }
+190: 
+191:     /**
+192:      * Mark notifications for a specific category/section as read.
+193:      */
+194:     public function markCategoryRead(Request $request)
+195:     {
+196:         try {
+197:             $user = $request->user();
+198:             if (!$user) {
+199:                 return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+200:             }
+201: 
+202:             $category = $request->input('category');
+203:             $userId = $user->id;
+204: 
+205:             // Direct DB update for notifications
+206:             DB::table('notifications')
+207:                 ->where('notifiable_type', get_class($user))
+208:                 ->where('notifiable_id', $userId)
+209:                 ->whereNull('read_at')
+210:                 ->update(['read_at' => now()]);
+211: 
+212:             // Direct DB update for conversations messages
+213:             if ($category === 'conversations') {
+214:                 $userConversationIds = Conversation::where('user_id', $userId)
+215:                     ->orWhere('vendor_id', $userId)
+216:                     ->pluck('id');
+217: 
+218:                 if ($userConversationIds->isNotEmpty()) {
+219:                     MessageConversation::whereIn('conversation_id', $userConversationIds)
+220:                         ->where('sender_id', '!=', $userId)
+221:                         ->update(['read' => 1]);
+222:                 }
+223:             }
+224: 
+225:             return $this->unreadCounts($request);
+226:         } catch (\Throwable $e) {
+227:             Log::error("[NotificationBadgeController] markCategoryRead ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+228:             return response()->json([
+229:                 'success' => false,
+230:                 'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
+231:             ], 500);
+232:         }
+233:     }
+234: }
+```
+
+## File: app/Http/Controllers/Dashboard/Settings/NotificationEmailController.php
+```php
+ 1: <?php
+ 2: 
+ 3: namespace App\Http\Controllers\Dashboard\Settings;
+ 4: 
+ 5: use App\Http\Controllers\Controller;
+ 6: use App\Models\AdminNotificationEmail;
+ 7: use Illuminate\Http\Request;
+ 8: 
+ 9: class NotificationEmailController extends Controller
+10: {
+11:     public function index()
+12:     {
+13:         $emails = AdminNotificationEmail::latest()->get();
+14:         return view('dashboard.settings.notification-emails.index', compact('emails'));
+15:     }
+16: 
+17:     public function store(Request $request)
+18:     {
+19:         $request->validate([
+20:             'email' => 'required|email|unique:admin_notification_emails,email'
+21:         ], [
+22:             'email.required' => 'البريد الإلكتروني مطلوب.',
+23:             'email.email' => 'صيغة البريد الإلكتروني غير صحيحة.',
+24:             'email.unique' => 'هذا البريد مسجل مسبقاً.'
+25:         ]);
+26: 
+27:         AdminNotificationEmail::create([
+28:             'email' => $request->email
+29:         ]);
+30: 
+31:         return redirect()->back()->with('success', 'تم إضافة البريد الإلكتروني بنجاح.');
+32:     }
+33: 
+34:     public function destroy($id)
+35:     {
+36:         $email = AdminNotificationEmail::findOrFail($id);
+37:         $email->delete();
+38: 
+39:         return redirect()->back()->with('success', 'تم حذف البريد الإلكتروني بنجاح.');
+40:     }
+41: }
 ```
 
 ## File: app/Http/Controllers/FileController.php
@@ -15597,6 +15600,269 @@ vite.config.js
 63: }
 ```
 
+## File: app/Http/Services/Dashboard/ShippingRequestManagement/ShippingRequestManagementService.php
+```php
+  1: <?php
+  2: 
+  3: namespace App\Http\Services\Dashboard\ShippingRequestManagement;
+  4: 
+  5: use App\Enums\StatusShippingRequestEnum;
+  6: use App\Http\Repositories\Dashboard\ShippingRequestManagement\ShippingRequestManagementRepository;
+  7: use App\Http\Services\BaseService;
+  8: use App\Models\ShippingRequest;
+  9: use App\Utils\ConfigUtils;
+ 10: use App\Utils\OTOServiceUtils;
+ 11: use Exception;
+ 12: use Illuminate\Http\Request;
+ 13: use Illuminate\Support\Facades\Http;
+ 14: use Illuminate\Support\Facades\Log;
+ 15: 
+ 16: class ShippingRequestManagementService extends BaseService
+ 17: {
+ 18:     public function __construct(protected ShippingRequestManagementRepository $repo, protected OTOServiceUtils $otoServiceUtils) {}
+ 19: 
+ 20:     public function index(Request $request)
+ 21:     {
+ 22:         $searchValue = $request->input('search.value');
+ 23: 
+ 24:         $recordsCount =  $this->repo->getTotalRecordsCount(ShippingRequest::class);
+ 25:         $recordsCountwithFilter = $this->repo->recordsCountShippingRequestWithFilter($searchValue);
+ 26:         $records = $this->repo->index($request, $searchValue);
+ 27: 
+ 28:         return $this->repo->formatResponseDataTables(
+ 29:             draw: $request->input('draw'),
+ 30:             recordsCount: $recordsCount,
+ 31:             recordsCountwithFilter: $recordsCountwithFilter,
+ 32:             records: $records
+ 33:         );
+ 34:     }
+ 35:     public function show($id)
+ 36:     {
+ 37:         $this->validate(['id' => $id], [
+ 38:             'id' => 'required|integer|exists:shipping_requests,id',
+ 39:         ]);
+ 40: 
+ 41:         $shippingRequest = $this->repo->show($id);
+ 42:         $accessToken = $this->otoServiceUtils->getAccessTokenOTO();
+ 43:         $cheapestCompany = null;
+ 44:         if ($shippingRequest->is_user_confirmed && $shippingRequest->status == StatusShippingRequestEnum::Pending) {
+ 45:             $cheapestCompany = $this->otoServiceUtils->checkDeliveryFeeAndGetCheapest(
+ 46:                 accessToken: $accessToken,
+ 47:                 originCity: $shippingRequest->city_origin_vendor,
+ 48:                 destinationCity: $shippingRequest->city_origin_dimensions,
+ 49:                 width: $shippingRequest->width,
+ 50:                 length: $shippingRequest->length,
+ 51:                 height: $shippingRequest->height,
+ 52:                 weight: $shippingRequest->weight
+ 53:             );
+ 54:         }
+ 55:         Log::info($cheapestCompany);
+ 56: 
+ 57:         return [
+ 58:             'shippingRequest' => $shippingRequest,
+ 59:             'cheapestCompany' => $cheapestCompany,
+ 60:         ];
+ 61:     }
+ 62: 
+ 63:     public function createOrderShippingRequest(Request $request)
+ 64:     {
+ 65:         $this->validate($request->all(), [
+ 66:             'shippingRequestId' => 'required|integer|exists:shipping_requests,id',
+ 67:             'deliveryOptionId' => 'required',
+ 68:         ]);
+ 69: 
+ 70:         $shippingRequest = $this->repo->getShippingRequestDetailById($request->input('shippingRequestId'));
+ 71:         Log::info('Shipping Request Details: ', ['customer_name' => $shippingRequest->customer_name, 'company_sender_name' => $shippingRequest->company_sender_name]);
+ 72:         $accessToken = $this->otoServiceUtils->getAccessTokenOTO();
+ 73:         $body = [
+ 74:             "orderId" =>  '766576',
+ 75:             "createShipment" => true, // إنشاء الشحنة مباشرة
+ 76:             "payment_method" => "cod", // الدفع عند الاستلام
+ 77:             "amount" => ConfigUtils::getAmountRateAppForCharge(),
+ 78:             "amount_due" => 0,
+ 79:             "deliveryOptionId" => $request->input('deliveryOptionId'),
+ 80:             // "brandId" => 1233,
+ 81:             // "customsValue" => "12",
+ 82:             // "customsCurrency" => "SAR",
+ 83:             // "shippingAmount" => 20,
+ 84:             // "subtotal" => 200,
+ 85:             "currency" => "SAR",
+ 86:             // "shippingNotes" => "be careful. it is fragile",
+ 87:             // "packageSize" => "small",
+ 88:             // "packageCount" => 2,
+ 89:             // "packageWeight" => 1,
+ 90:             // "boxWidth" => 10,
+ 91:             // "boxLength" => 10,
+ 92:             // "boxHeight" => 10,
+ 93:             // "orderDate" => now()->format('d/m/Y H:i'),
+ 94:             // "deliverySlotDate" => now()->addDay()->format('d/m/Y'),
+ 95:             // "deliverySlotTo" => "12pm",
+ 96:             // "deliverySlotFrom" => "2:30pm",
+ 97:             "senderName" => $shippingRequest->company_sender_name ?? '',
+ 98:             "senderInformation" => [
+ 99:                 "senderFullName" => $shippingRequest->company_sender_name ?? '',
+100:                 "senderMobile" => $shippingRequest->phone_origin_vendor ?? '',
+101:                 // "senderEmail" => "test@example.com",
+102:                 "senderCountry" => "SA",
+103:                 "senderCity" => \App\Utils\OTOServiceUtils::sanitizeCity($shippingRequest->city_origin_vendor),
+104:                 "senderAddressLine" => $shippingRequest->address_origin_vendor ?? ''
+105:             ],
+106:             "customer" => [
+107:                 "name" => $shippingRequest->company_sender_name ?? '',
+108:                 // "email" => "test@test.com",
+109:                 "mobile" => $shippingRequest->phone_origin_dimensions ?? '',
+110:                 "address" => $shippingRequest->address_origin_dimensions ?? '',
+111:                 // "district" => "Al Mughaisilah Dist.",
+112:                 "city" => \App\Utils\OTOServiceUtils::sanitizeCity($shippingRequest->city_origin_dimensions),
+113:                 "country" => "SA",
+114:                 // "postcode" => "42315"
+115:             ],
+116:             "items" => [
+117:                 [
+118:                     // "productId" => 112,
+119:                     "name" => "box 1",
+120:                     "price" => ConfigUtils::getAmountRateAppForCharge(),
+121:                     // "rowTotal" => 5,
+122:                     // "taxAmount" => 0,
+123:                     "quantity" => 1,
+124:                     // "sku" => "test-product",
+125:                     // "currency" => "SAR"
+126:                 ],
+127:             ]
+128:         ];
+129:         // $shippingRequest->update([
+130:         //     'status' => StatusShippingRequestEnum::InProgress,
+131:         // ]);
+132:         $createOrderResponse = $this->otoServiceUtils->createOrder($body, $accessToken);
+133:         // array(
+134:         //     'success' => true,
+135:         //     'otoId' => 25014681,
+136:         // );
+137:         Log::info($createOrderResponse);
+138:         if ($createOrderResponse['success']) {
+139:             $shippingRequest->update([
+140:                 'status' => StatusShippingRequestEnum::InProgress,
+141:                 'oto_id' => $createOrderResponse['otoId'],
+142:             ]);
+143:         }
+144:     }
+145: }
+```
+
+## File: app/Http/Services/Shared/EmailService.php
+```php
+1: <?php
+2: 
+3: namespace App\Http\Services\Shared;
+4: 
+5: use App\Services\EmailService as BaseEmailService;
+6: 
+7: class EmailService extends BaseEmailService
+8: {
+9: }
+```
+
+## File: app/Jobs/SendNewShippingRequestNotificationJob.php
+```php
+ 1: <?php
+ 2: 
+ 3: namespace App\Jobs;
+ 4: 
+ 5: use Illuminate\Bus\Queueable;
+ 6: use Illuminate\Contracts\Queue\ShouldQueue;
+ 7: use Illuminate\Foundation\Bus\Dispatchable;
+ 8: use Illuminate\Queue\InteractsWithQueue;
+ 9: use Illuminate\Queue\SerializesModels;
+10: use App\Models\AdminNotificationEmail;
+11: use App\Services\EmailService;
+12: use Illuminate\Support\Facades\Log;
+13: 
+14: class SendNewShippingRequestNotificationJob implements ShouldQueue
+15: {
+16:     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+17: 
+18:     public $shippingRequestId;
+19:     public $vendorName;
+20: 
+21:     /**
+22:      * Create a new job instance.
+23:      *
+24:      * @return void
+25:      */
+26:     public function __construct($shippingRequestId, $vendorName = null)
+27:     {
+28:         $this->shippingRequestId = $shippingRequestId;
+29:         $this->vendorName = $vendorName;
+30:     }
+31: 
+32:     /**
+33:      * Execute the job.
+34:      *
+35:      * @return void
+36:      */
+37:     public function handle(EmailService $emailService)
+38:     {
+39:         try {
+40:             $emails = AdminNotificationEmail::pluck('email')->toArray();
+41:             
+42:             if (empty($emails)) {
+43:                 Log::info('No admin notification emails found to send new shipping request alert.');
+44:                 return;
+45:             }
+46: 
+47:             $subject = 'طلب شحن جديد بانتظار المراجعة - #' . $this->shippingRequestId;
+48:             
+49:             $vendorText = $this->vendorName ? "الخاص بالبائع: <strong>{$this->vendorName}</strong>" : "";
+50:             
+51:             $dashboardUrl = url('/dashboard/shipping-request-management/show/' . $this->shippingRequestId);
+52:             
+53:             $htmlMessage = "
+54:                 <div style='direction: rtl; text-align: right; font-family: Arial, sans-serif; line-height: 1.6;'>
+55:                     <h2 style='color: #2c3e50;'>مرحباً،</h2>
+56:                     <p>هناك طلب شحن جديد تم تأكيده من قبل العميل وهو بانتظار المراجعة الآن في لوحة التحكم.</p>
+57:                     <p><strong>رقم الطلب:</strong> {$this->shippingRequestId}</p>
+58:                     <p>{$vendorText}</p>
+59:                     <br>
+60:                     <p>
+61:                         <a href='{$dashboardUrl}' style='display: inline-block; padding: 10px 20px; background-color: #3498db; color: #ffffff; text-decoration: none; border-radius: 5px;'>
+62:                             مراجعة الطلب في لوحة التحكم
+63:                         </a>
+64:                     </p>
+65:                     <br>
+66:                     <p>تحياتنا،<br>فريق وسيط السيارات</p>
+67:                 </div>
+68:             ";
+69: 
+70:             foreach ($emails as $email) {
+71:                 $emailService->sendEmail($email, $subject, $htmlMessage);
+72:             }
+73:             
+74:             Log::info("Sent new shipping request notification for request #{$this->shippingRequestId} to " . count($emails) . " admins.");
+75:             
+76:         } catch (\Exception $e) {
+77:             Log::error('Error in SendNewShippingRequestNotificationJob: ' . $e->getMessage());
+78:         }
+79:     }
+80: }
+```
+
+## File: app/Models/AdminNotificationEmail.php
+```php
+ 1: <?php
+ 2: 
+ 3: namespace App\Models;
+ 4: 
+ 5: use Illuminate\Database\Eloquent\Factories\HasFactory;
+ 6: use Illuminate\Database\Eloquent\Model;
+ 7: 
+ 8: class AdminNotificationEmail extends Model
+ 9: {
+10:     use HasFactory;
+11: 
+12:     protected $fillable = ['email'];
+13: }
+```
+
 ## File: app/Models/Conversation.php
 ```php
  1: <?php
@@ -15756,80 +16022,6 @@ vite.config.js
 81: }
 ```
 
-## File: app/Providers/AppServiceProvider.php
-```php
- 1: <?php
- 2: 
- 3: namespace App\Providers;
- 4: 
- 5: use App\Enums\user\UserRoleEnum;
- 6: use App\Events\NotificationBadgeUpdated;
- 7: use App\Models\BrandCar;
- 8: use App\Models\Category;
- 9: use App\Models\CategoryHasBrandField;
-10: use App\Models\City;
-11: use App\Models\CustomField;
-12: use App\Notifications\SendNotification;
-13: use App\Observers\BrandCarObserver;
-14: use App\Observers\CategoryHasBrandFieldObserver;
-15: use App\Observers\CategoryObserver;
-16: use App\Observers\CityObserver;
-17: use App\Observers\CustomFieldObserver;
-18: use Illuminate\Notifications\Events\NotificationSent;
-19: use Illuminate\Support\Facades\Event;
-20: use Illuminate\Support\Facades\Gate;
-21: use Illuminate\Support\ServiceProvider;
-22: 
-23: class AppServiceProvider extends ServiceProvider
-24: {
-25:     /**
-26:      * Register any application services.
-27:      */
-28:     public function register(): void
-29:     {
-30:         //
-31:     }
-32: 
-33:     /**
-34:      * Bootstrap any application services.
-35:      */
-36:     public function boot(): void
-37:     {
-38:         City::observe(CityObserver::class);
-39:         BrandCar::observe(BrandCarObserver::class);
-40:         Category::observe(CategoryObserver::class);
-41:         CategoryHasBrandField::observe(CategoryHasBrandFieldObserver::class);
-42:         CustomField::observe(CustomFieldObserver::class);
-43: 
-44:         // Implicitly grant "Super Admin" role all permissions
-45:         // This works in the app by using gate-related functions like auth()->user->can() and @can()
-46:         Gate::before(function ($user, $ability) {
-47:             return $user->hasRole(UserRoleEnum::Super_Admin->value) ? true : null;
-48:         });
-49: 
-50:         if ($this->app->environment('production') || env('FORCE_HTTPS', false)) {
-51:             \Illuminate\Support\Facades\URL::forceScheme('https');
-52:         }
-53: 
-54:         // Whenever a SendNotification is delivered (via ->notify()), also
-55:         // broadcast NotificationBadgeUpdated on the user's private channel
-56:         // so the Flutter app updates in real time instead of relying on
-57:         // polling. This fires automatically for every current and future
-58:         // ->notify(new SendNotification(...)) call in the app — no need
-59:         // to touch each call site individually.
-60:         Event::listen(function (NotificationSent $event) {
-61:             if ($event->notification instanceof SendNotification) {
-62:                 NotificationBadgeUpdated::dispatch(
-63:                     $event->notifiable->id,
-64:                     $event->notification->toArray($event->notifiable)['category'] ?? null,
-65:                     []
-66:                 );
-67:             }
-68:         });
-69:     }
-70: }
-```
-
 ## File: app/Rules/RequiredBrandIfCategoryHasBrandRule.php
 ```php
  1: <?php
@@ -15861,337 +16053,161 @@ vite.config.js
 27: }
 ```
 
-## File: app/Utils/FcmNotificationUtils.php
+## File: app/Services/EmailService.php
 ```php
-  1: <?php
-  2: 
-  3: namespace App\Utils;
-  4: 
-  5: use Exception;
-  6: use GuzzleHttp\Client as GuzzleClient;
-  7: use Google_Client;
-  8: use Illuminate\Support\Facades\Cache;
-  9: use Illuminate\Support\Facades\Log;
- 10: 
- 11: 
- 12: class FcmNotificationUtils
- 13: {
- 14:     protected $title;
- 15:     protected $body;
- 16:     protected $icon;
- 17:     protected $click_action;
- 18:     protected $token;
- 19:     protected $topic;
- 20:     protected $category;
- 21:     protected $extraData = [];
- 22: 
- 23:     public function setExtraData(array $extraData)
- 24:     {
- 25:         $this->extraData = $extraData;
- 26:         return $this;
- 27:     }
- 28: 
- 29:     public function setCategory($category)
- 30:     {
- 31:         $this->category = $category;
- 32:         return $this;
- 33:     }
- 34: 
- 35:     /**
- 36:      *Title of the notification.
- 37:      *@param string $title
- 38:      */
- 39:     public function setTitle($title)
- 40:     {
- 41:         $this->title = $title;
- 42:         return $this;
- 43:     }
- 44: 
- 45:     /**
- 46:      *Body of the notification.
- 47:      *@param string $body
- 48:      */
- 49:     public function setBody($body)
- 50:     {
- 51:         $this->body = $body;
- 52:         return $this;
- 53:     }
- 54: 
- 55:     /**
- 56:      *Icon of the notification.
- 57:      *@param string $icon
- 58:      */
- 59:     public function setIcon($icon)
- 60:     {
- 61:         $this->icon = $icon;
- 62:         return $this;
- 63:     }
- 64: 
- 65:     /**
- 66:      *Link of the notification when user click on it.
- 67:      *@param string $click_action
- 68:      */
- 69:     public function setClickAction($click_action)
- 70:     {
- 71:         $this->click_action = $click_action;
- 72:         return $this;
- 73:     }
- 74: 
- 75:     /**
- 76:      *Token used to send notification to specific device. Unusable with setTopic() at same time.
- 77:      *@param string $string
- 78:      */
- 79:     public function setToken($token)
- 80:     {
- 81:         $this->token = $token;
- 82:         return $this;
- 83:     }
- 84: 
- 85:     /**
- 86:      *Topic of the notification. Unusable with setToken() at same time.
- 87:      *@param string $topic
- 88:      */
- 89:     public function setTopic($topic)
- 90:     {
- 91:         $this->topic = $topic;
- 92:         return $this;
- 93:     }
- 94: 
- 95:     /**
- 96:      * Verify the conformity of the notification. If everything is ok, send the notification.
- 97:      */
- 98:     public function send()
- 99:     {
-100:         // Token and topic combinaison verification
-101:         if ($this->token != null && $this->topic != null) {
-102:             return;
-103:         }
-104: 
-105:         // Empty token or topic verification
-106:         if ($this->token == null && $this->topic == null) {
-107:             return;
-108:         }
-109: 
-110:         // Title verification
-111:         if (!isset($this->title)) {
-112:             return;
-113:         }
-114: 
-115:         // Body verification
-116:         if (!isset($this->body)) {
-117:             return;
-118:         }
-119: 
-120:         return $this->prepareSend();
-121:     }
-122: 
-123:     private function prepareSend()
-124:     {
-125:         $dataArr = array_merge([
-126:             'click_action' => $this->click_action ?? 'FLUTTER_NOTIFICATION_CLICK',
-127:             'status' => 'done',
-128:             'type_notification' => 'all',
-129:             'category' => $this->category ?? 'conversations',
-130:             'screen' => 'NotificationsScreen',
-131:         ], $this->extraData ?? []);
-132: 
-133:         if (isset($this->topic)) {
-134:             $json = [
-135:                 "message" => [
-136:                     "topic" => $this->topic,
-137:                     "notification" => [
-138:                         "title" => $this->title,
-139:                         "body" => $this->body,
-140:                     ],
-141:                     'data' => $dataArr,
-142:                 ]
-143:             ];
-144:         } else if (isset($this->token)) {
-145:             $json = [
-146:                 "message" => [
-147:                     "token" => $this->token,
-148:                     "notification" => [
-149:                         "title" => $this->title,
-150:                         "body" => $this->body,
-151:                     ],
-152:                     'data' => $dataArr,
-153:                 ]
-154:             ];
-155:         }
-156: 
-157:         // $encodedData = json_encode($data);
-158: 
-159:         return $this->handleSend($json);
-160:     }
-161: 
-162:     private function handleSend($json)
-163:     {
-164:         try {
-165:             $client = new GuzzleClient();
-166:             // project_id = mazad-ibraa
-167:             $response = $client->post('https://fcm.googleapis.com/v1/projects/car-mediator-platform/messages:send', [
-168:                 'headers' => [
-169:                     'Authorization' => 'Bearer ' . $this->getAccessToken(),
-170:                     'Content-Type' => 'application/json',
-171:                 ],
-172:                 'json' => $json,
-173:             ]);
-174: 
-175:             return $response ?? '';
-176:         } catch (Exception $e) {
-177:             Log::error("[Notification] ERROR", [$e->getMessage()]);
-178: 
-179:             return $e;
-180:         }
-181:     }
-182: 
-183:     private function getAccessToken()
-184:     {
-185:         return Cache::remember('fcm_access_token_key', 3500, function () {
-186:             $credentialsPath = storage_path('app/json/firebase/car-mediator-platform-firebase-adminsdk-fbsvc-1d8876fe49.json'); // Path to your service account file
-187: 
-188:             $client = new Google_Client();
-189:             $client->setAuthConfig($credentialsPath);
-190:             $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
-191: 
-192:             $token = $client->fetchAccessTokenWithAssertion();
-193:             return $token['access_token'];
-194:         });
-195:     }
-196: }
+ 1: <?php
+ 2: 
+ 3: namespace App\Services;
+ 4: 
+ 5: use Illuminate\Support\Facades\Mail;
+ 6: use Illuminate\Support\Facades\Log;
+ 7: use Throwable;
+ 8: 
+ 9: class EmailService
+10: {
+11:     /**
+12:      * Send an HTML email using the configured SMTP driver (Gmail).
+13:      *
+14:      * @param string $email Recipient email address
+15:      * @param string $subject Email subject line
+16:      * @param string $htmlMessage HTML formatted message body
+17:      * @return bool True if sent successfully, false otherwise
+18:      */
+19:     public function sendEmail(string $email, string $subject, string $htmlMessage): bool
+20:     {
+21:         try {
+22:             Log::info("Connecting to SMTP and sending email to: {$email} with subject: '{$subject}'");
+23: 
+24:             Mail::html($htmlMessage, function ($message) use ($email, $subject) {
+25:                 $message->to($email)
+26:                         ->subject($subject);
+27:             });
+28: 
+29:             Log::info("Email sent successfully to {$email}");
+30:             return true;
+31:         } catch (Throwable $e) {
+32:             Log::error("Failed to send email to {$email}. Error: " . $e->getMessage(), [
+33:                 'email' => $email,
+34:                 'subject' => $subject,
+35:                 'trace' => $e->getTraceAsString(),
+36:             ]);
+37:             return false;
+38:         }
+39:     }
+40: 
+41:     /**
+42:      * Send a plain text email.
+43:      *
+44:      * @param string $email Recipient email address
+45:      * @param string $subject Email subject line
+46:      * @param string $textMessage Plain text message body
+47:      * @return bool True if sent successfully, false otherwise
+48:      */
+49:     public function sendPlainEmail(string $email, string $subject, string $textMessage): bool
+50:     {
+51:         try {
+52:             Log::info("Sending plain text email to: {$email}");
+53: 
+54:             Mail::raw($textMessage, function ($message) use ($email, $subject) {
+55:                 $message->to($email)
+56:                         ->subject($subject);
+57:             });
+58: 
+59:             Log::info("Plain email sent successfully to {$email}");
+60:             return true;
+61:         } catch (Throwable $e) {
+62:             Log::error("Failed to send plain email to {$email}. Error: " . $e->getMessage());
+63:             return false;
+64:         }
+65:     }
+66: }
 ```
 
-## File: config/app.php
+## File: app/Traits/NotificationsTrait.php
 ```php
-  1: <?php
-  2: 
-  3: return [
-  4: 
-  5:     /*
-  6:     |--------------------------------------------------------------------------
-  7:     | Application Name
-  8:     |--------------------------------------------------------------------------
-  9:     |
- 10:     | This value is the name of your application, which will be used when the
- 11:     | framework needs to place the application's name in a notification or
- 12:     | other UI elements where an application name needs to be displayed.
- 13:     |
- 14:     */
- 15: 
- 16:     'name' => env('APP_NAME', 'Laravel'),
- 17: 
- 18:     /*
- 19:     |--------------------------------------------------------------------------
- 20:     | Application Environment
- 21:     |--------------------------------------------------------------------------
- 22:     |
- 23:     | This value determines the "environment" your application is currently
- 24:     | running in. This may determine how you prefer to configure various
- 25:     | services the application utilizes. Set this in your ".env" file.
- 26:     |
- 27:     */
- 28: 
- 29:     'env' => env('APP_ENV', 'production'),
- 30: 
- 31:     /*
- 32:     |--------------------------------------------------------------------------
- 33:     | Application Debug Mode
- 34:     |--------------------------------------------------------------------------
- 35:     |
- 36:     | When your application is in debug mode, detailed error messages with
- 37:     | stack traces will be shown on every error that occurs within your
- 38:     | application. If disabled, a simple generic error page is shown.
- 39:     |
- 40:     */
- 41: 
- 42:     'debug' => (bool) env('APP_DEBUG', false),
- 43: 
- 44:     /*
- 45:     |--------------------------------------------------------------------------
- 46:     | Application URL
- 47:     |--------------------------------------------------------------------------
- 48:     |
- 49:     | This URL is used by the console to properly generate URLs when using
- 50:     | the Artisan command line tool. You should set this to the root of
- 51:     | the application so that it's available within Artisan commands.
- 52:     |
- 53:     */
- 54: 
- 55:     'url' => filter_var(env('APP_URL'), FILTER_VALIDATE_URL) ? env('APP_URL') : 'http://localhost',
- 56: 
- 57:     /*
- 58:     |--------------------------------------------------------------------------
- 59:     | Application Timezone
- 60:     |--------------------------------------------------------------------------
- 61:     |
- 62:     | Here you may specify the default timezone for your application, which
- 63:     | will be used by the PHP date and date-time functions. The timezone
- 64:     | is set to "UTC" by default as it is suitable for most use cases.
- 65:     |
- 66:     */
- 67: 
- 68:     'timezone' => env('APP_TIMEZONE', 'Asia/Riyadh'),
- 69:     'user_timezone' => env('APP_USER_TIMEZONE', 'Asia/Riyadh'),
- 70: 
- 71:     /*
- 72:     |--------------------------------------------------------------------------
- 73:     | Application Locale Configuration
- 74:     |--------------------------------------------------------------------------
- 75:     |
- 76:     | The application locale determines the default locale that will be used
- 77:     | by Laravel's translation / localization methods. This option can be
- 78:     | set to any locale for which you plan to have translation strings.
- 79:     |
- 80:     */
- 81: 
- 82:     'locale' => env('APP_LOCALE', 'ar'),
- 83: 
- 84:     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
- 85: 
- 86:     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
- 87: 
- 88:     'supported_locales' => ['ar', 'en'],
- 89: 
- 90:     /*
- 91:     |--------------------------------------------------------------------------
- 92:     | Encryption Key
- 93:     |--------------------------------------------------------------------------
- 94:     |
- 95:     | This key is utilized by Laravel's encryption services and should be set
- 96:     | to a random, 32 character string to ensure that all encrypted values
- 97:     | are secure. You should do this prior to deploying the application.
- 98:     |
- 99:     */
-100: 
-101:     'cipher' => 'AES-256-CBC',
-102: 
-103:     'key' => env('APP_KEY'),
-104: 
-105:     'previous_keys' => [
-106:         ...array_filter(
-107:             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))
-108:         ),
-109:     ],
-110: 
-111:     /*
-112:     |--------------------------------------------------------------------------
-113:     | Maintenance Mode Driver
-114:     |--------------------------------------------------------------------------
-115:     |
-116:     | These configuration options determine the driver used to determine and
-117:     | manage Laravel's "maintenance mode" status. The "cache" driver will
-118:     | allow maintenance mode to be controlled across multiple machines.
-119:     |
-120:     | Supported drivers: "file", "cache"
-121:     |
-122:     */
-123: 
-124:     'maintenance' => [
-125:         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
-126:         'store' => env('APP_MAINTENANCE_STORE', 'database'),
-127:     ],
-128: 
-129: ];
+ 1: <?php
+ 2: 
+ 3: namespace App\Traits;
+ 4: 
+ 5: use App\Enums\user\UserRoleEnum;
+ 6: use App\Utils\FcmNotificationUtils;
+ 7: use App\Models\User;
+ 8: use App\Notifications\SendNotification;
+ 9: use Illuminate\Http\Request;
+10: 
+11: trait NotificationsTrait
+12: {
+13: 
+14:     public function notifyToAdmin($title, $body)
+15:     {
+16:         $admins = User::role([UserRoleEnum::Super_Admin->value, UserRoleEnum::Admin->value], 'admin')->get();
+17:         foreach ($admins as $admin) {
+18:             $admin->notify(new SendNotification(title: $title, body: $body));
+19:         }
+20:     }
+21: 
+22:     public function notifyRequestToEligibleVendors($vendors, $requestId = null)
+23:     {
+24:         foreach ($vendors as $vendor) {
+25:             $user = User::where('id', $vendor->user_id)->first(['id', 'fcm_token']);
+26:             if ($user) {
+27:                 $user->notify(new SendNotification(title: 'طلب جديد', body: 'تم اضافة طلب جديد', category: 'customer_requests', targetId: $requestId));
+28:                 (new FcmNotificationUtils())->setTitle('طلب جديد')->setBody('تم اضافة طلب جديد')->setCategory('customer_requests')->setToken($user->fcm_token)->send();
+29:             }
+30:         }
+31:     }
+32: 
+33:     public function notifyByID($userId, $title, $body, $notifyDB = true, $category = 'conversations', $targetId = null, array $extraData = [])
+34:     {
+35:         $user = User::where('id', $userId)->first(['id', 'fcm_token']);
+36:         if ($user) {
+37:             if ($notifyDB) {
+38:                 $user->notify(new SendNotification(title: $title, body: $body, category: $category, targetId: $targetId));
+39:             }
+40:             (new FcmNotificationUtils())
+41:                 ->setTitle($title)
+42:                 ->setBody($body)
+43:                 ->setCategory($category)
+44:                 ->setExtraData($extraData)
+45:                 ->setToken($user->fcm_token)
+46:                 ->send();
+47:         }
+48:     }
+49: 
+50:     public function getNotifications(Request $request)
+51:     {
+52:         $user = currUserHelper();
+53:         $notifications = $user->notifications()
+54:             ->select('id', 'data', 'created_at')
+55:             ->orderBy('created_at', 'desc')
+56:             ->paginate(20);
+57: 
+58:         $notifications->getCollection()->transform(function ($item) {
+59:             $data = $item->data;
+60: 
+61:             return [
+62:                 'id' => $item->id,
+63:                 'title' => $data['title'] ?? null,
+64:                 'body' => $data['body'] ?? null,
+65:                 'created_at' => $item->created_at->format('Y-m-d H:i'),
+66:             ];
+67:         });
+68: 
+69:         // return buildApiResponseHelper(true, 'تم التحميل بنجاح', [
+70:         //     'current_page' => $result->currentPage(),
+71:         //     'last_page' => $result->lastPage(),
+72:         //     'data' => $result->items(),
+73:         // ]);
+74: 
+75:         return buildApiResponseHelper(true, 'تم التحميل بنجاح', [
+76:             'current_page' => $notifications->currentPage(),
+77:             'last_page' => $notifications->lastPage(),
+78:             'total' => $notifications->total(),
+79:             'per_page' => $notifications->perPage(),
+80:             'data' => $notifications->items(),
+81:         ]);
+82:     }
+83: }
 ```
 
 ## File: config/services.php
@@ -16396,10 +16412,36 @@ vite.config.js
 27: };
 ```
 
-## File: nixpacks.toml
-```toml
-1: [phases.setup]
-2:   nixPkgs = ['php84', 'php84Packages.composer']
+## File: database/migrations/2026_09_09_144900_create_admin_notification_emails_table.php
+```php
+ 1: <?php
+ 2: 
+ 3: use Illuminate\Database\Migrations\Migration;
+ 4: use Illuminate\Database\Schema\Blueprint;
+ 5: use Illuminate\Support\Facades\Schema;
+ 6: 
+ 7: return new class extends Migration
+ 8: {
+ 9:     /**
+10:      * Run the migrations.
+11:      */
+12:     public function up(): void
+13:     {
+14:         Schema::create('admin_notification_emails', function (Blueprint $table) {
+15:             $table->id();
+16:             $table->string('email')->unique();
+17:             $table->timestamps();
+18:         });
+19:     }
+20: 
+21:     /**
+22:      * Reverse the migrations.
+23:      */
+24:     public function down(): void
+25:     {
+26:         Schema::dropIfExists('admin_notification_emails');
+27:     }
+28: };
 ```
 
 ## File: repomix.config.json
@@ -16434,6 +16476,212 @@ vite.config.js
 28:     ]
 29:   }
 30: }
+```
+
+## File: resources/views/dashboard/included/sidebar.blade.php
+```php
+  1: @use('App\Enums\PermissionEnum')
+  2: <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+  3:     <div class="sidebar-brand"> <a href="{{ route('dashboard') }}" class="brand-link">
+  4:             <span class="brand-text fs-3 fw-semibold">لوحة تحكم الإدارة</span> </a>
+  5:     </div>
+  6:     <div class="sidebar-wrapper">
+  7:         <nav class="mt-2">
+  8:             <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu" data-accordion="false">
+  9:                 <li class="nav-item"> <a href="{{ route('dashboard') }}"
+ 10:                         class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+ 11:                         <i class="nav-icon fa fa-house"></i>
+ 12:                         <p>الرئيسية</p>
+ 13:                     </a>
+ 14:                 </li>
+ 15:                 <li class="nav-item"> <a href="#" class="nav-link">
+ 16:                         <i class="nav-icon fa-solid fa-gear"></i>
+ 17:                         <p>الإعدادات</p>
+ 18:                     </a>
+ 19:                 </li>
+ 20:                 <li class="nav-item"> <a href="{{ route('dashboard.categories.index') }}"
+ 21:                         class="nav-link {{ request()->routeIs('dashboard.categories.*') ? 'active' : '' }}">
+ 22:                         <i class="nav-icon fa-solid fa-layer-group"></i>
+ 23:                         <p> الأقسام</p>
+ 24:                     </a>
+ 25:                 </li>
+ 26: 
+ 27:                 <li class="nav-item"> <a href="{{ route('dashboard.customers.index') }}"
+ 28:                         class="nav-link {{ request()->routeIs('dashboard.customers.*') ? 'active' : '' }}">
+ 29:                         <i class="nav-icon fa-solid fa-users"></i>
+ 30:                         <p> إدارة العملاء</p>
+ 31:                     </a>
+ 32:                 </li>
+ 33: 
+ 34:                 <li class="nav-item {{ request()->routeIs('dashboard.vendors-management.*') ? 'menu-open' : '' }}">
+ 35:                     <a href="#"
+ 36:                         class="nav-link {{ request()->routeIs('dashboard.vendors-management.*') ? 'active' : '' }}"> <i
+ 37:                             class="nav-icon fa-solid fa-building"></i>
+ 38:                         <p>إدارة الشركات <i class="nav-arrow bi bi-chevron-right"></i></p>
+ 39:                     </a>
+ 40:                     <ul class="nav nav-treeview">
+ 41:                         <li class="nav-item"> <a href="{{ route('dashboard.vendors-management.vendors.index') }}"
+ 42:                                 class="nav-link {{ request()->routeIs('dashboard.vendors-management.vendors.*') ? 'active' : '' }}">
+ 43:                                 <i class="nav-icon bi bi-circle"></i>
+ 44:                                 <p>الشركات</p>
+ 45:                             </a>
+ 46:                         </li>
+ 47:                         <li class="nav-item"> <a href="{{ route('dashboard.vendors-management.join-requests.index') }}"
+ 48:                                 class="nav-link {{ request()->routeIs('dashboard.vendors-management.join-requests.*') ? 'active' : '' }}">
+ 49:                                 <i class="nav-icon bi bi-circle"></i>
+ 50:                                 <p>طلبات الإنضمام</p>
+ 51:                             </a>
+ 52:                         </li>
+ 53:                     </ul>
+ 54:                 </li>
+ 55: 
+ 56:                 <li class="nav-item"> <a href="{{ route('dashboard.requests-management.index') }}"
+ 57:                         class="nav-link {{ request()->routeIs('dashboard.requests-management.*') ? 'active' : '' }}">
+ 58:                         <i class="nav-icon fa-solid fa-clipboard"></i>
+ 59:                         <p>الطلبات وردود الشركات</p>
+ 60:                     </a>
+ 61:                 </li>
+ 62: 
+ 63:                 <li class="nav-item"> <a href="{{ route('dashboard.shipping-request-management.index') }}"
+ 64:                         class="nav-link {{ request()->routeIs('dashboard.shipping-request-management.*') ? 'active' : '' }}">
+ 65:                         <i class="nav-icon fa-solid fa-truck-fast"></i>
+ 66:                         <p>إدارة طلبات الشحن</p>
+ 67:                     </a>
+ 68:                 </li>
+ 69: 
+ 70:                 <li class="nav-item"> <a href="#" class="nav-link">
+ 71:                         <i class="nav-icon fa-solid fa-money-check-dollar"></i>
+ 72:                         <p>نظام العمولات</p>
+ 73:                     </a>
+ 74:                 </li>
+ 75: 
+ 76:                 <li class="nav-item"> <a href="{{ route('dashboard.complaint-management.complaints') }}"
+ 77:                         class="nav-link {{ request()->routeIs('dashboard.complaint-management.*') ? 'active' : '' }}">
+ 78:                         <i class="nav-icon fa-solid fa-flag"></i>
+ 79:                         <p>الشكاوي</p>
+ 80:                     </a>
+ 81:                 </li>
+ 82: 
+ 83:                 <li class="nav-item"> <a href="{{ route('dashboard.settings.notification-emails.index') }}"
+ 84:                         class="nav-link {{ request()->routeIs('dashboard.settings.notification-emails.*') ? 'active' : '' }}">
+ 85:                         <i class="nav-icon fa-solid fa-envelope"></i>
+ 86:                         <p>إيميلات الإشعارات</p>
+ 87:                     </a>
+ 88:                 </li>
+ 89: 
+ 90:                 <li class="nav-item"> <a href="{{ route('dashboard.logs.index') }}"
+ 91:                         class="nav-link {{ request()->routeIs('dashboard.logs.*') ? 'active' : '' }}">
+ 92:                         <i class="nav-icon fa-solid fa-note-sticky"></i>
+ 93:                         <p>Logs</p>
+ 94:                     </a>
+ 95:                 </li>
+ 96: 
+ 97:             </ul>
+ 98:         </nav>
+ 99:     </div>
+100: </aside>
+```
+
+## File: resources/views/dashboard/settings/notification-emails/index.blade.php
+```php
+ 1: @extends('dashboard.layouts.app')
+ 2: @section('title', 'إيميلات الإشعارات')
+ 3: @section('content')
+ 4:     <main class="app-main">
+ 5:         <div class="app-content-header py-2">
+ 6:             <div class="container-fluid">
+ 7:                 <div class="row">
+ 8:                     <div class="col-sm-6">
+ 9:                         <ol class="breadcrumb float-sm-start">
+10:                             <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">الرئيسية</a></li>
+11:                             <li class="breadcrumb-item active" aria-current="page">
+12:                                 إيميلات الإشعارات
+13:                             </li>
+14:                         </ol>
+15:                     </div>
+16:                 </div>
+17:             </div>
+18:         </div>
+19:         <div class="app-content">
+20:             <div class="container-fluid">
+21: 
+22:                 @if(session('success'))
+23:                     <div class="alert alert-success">{{ session('success') }}</div>
+24:                 @endif
+25:                 @if($errors->any())
+26:                     <div class="alert alert-danger">
+27:                         <ul class="mb-0">
+28:                             @foreach($errors->all() as $error)
+29:                                 <li>{{ $error }}</li>
+30:                             @endforeach
+31:                         </ul>
+32:                     </div>
+33:                 @endif
+34: 
+35:                 <div class="card card-primary card-outline mb-4 mt-1">
+36:                     <div class="card-header py-2">
+37:                         <div class="card-title">إضافة إيميل جديد</div>
+38:                     </div>
+39:                     <div class="card-body">
+40:                         <form action="{{ route('dashboard.settings.notification-emails.store') }}" method="POST">
+41:                             @csrf
+42:                             <div class="row align-items-center">
+43:                                 <div class="col-md-8">
+44:                                     <input type="email" name="email" class="form-control" placeholder="أدخل البريد الإلكتروني هنا (مثال: admin@example.com)" required>
+45:                                 </div>
+46:                                 <div class="col-md-4 mt-2 mt-md-0">
+47:                                     <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-plus me-1"></i> إضافة البريد</button>
+48:                                 </div>
+49:                             </div>
+50:                         </form>
+51:                     </div>
+52:                 </div>
+53: 
+54:                 <div class="card card-primary card-outline mb-4">
+55:                     <div class="card-header py-2">
+56:                         <div class="card-title">قائمة الإيميلات المسجلة لاستلام إشعارات الشحن</div>
+57:                     </div>
+58:                     <div class="card-body">
+59:                         <div class="table-responsive mt-2">
+60:                             <table class="table table-hover nowrap dataTable" style="width:100%;">
+61:                                 <thead>
+62:                                     <tr>
+63:                                         <th class="text-start">#</th>
+64:                                         <th class="text-start">البريد الإلكتروني</th>
+65:                                         <th class="text-center">تاريخ الإضافة</th>
+66:                                         <th class="text-center">إجراءات</th>
+67:                                     </tr>
+68:                                 </thead>
+69:                                 <tbody>
+70:                                     @forelse($emails as $email)
+71:                                         <tr>
+72:                                             <td class="text-start">{{ $loop->iteration }}</td>
+73:                                             <td class="text-start">{{ $email->email }}</td>
+74:                                             <td class="text-center">{{ $email->created_at->format('Y-m-d H:i') }}</td>
+75:                                             <td class="text-center">
+76:                                                 <form action="{{ route('dashboard.settings.notification-emails.destroy', $email->id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا البريد؟');">
+77:                                                     @csrf
+78:                                                     @method('DELETE')
+79:                                                     <button type="submit" class="btn btn-sm btn-danger" title="حذف">
+80:                                                         <i class="fa-solid fa-trash"></i>
+81:                                                     </button>
+82:                                                 </form>
+83:                                             </td>
+84:                                         </tr>
+85:                                     @empty
+86:                                         <tr>
+87:                                             <td colspan="4" class="text-center text-muted">لا يوجد إيميلات مسجلة حالياً.</td>
+88:                                         </tr>
+89:                                     @endforelse
+90:                                 </tbody>
+91:                             </table>
+92:                         </div>
+93:                     </div>
+94:                 </div>
+95:             </div>
+96:         </div>
+97:     </main>
+98: @endsection
 ```
 
 ## File: resources/views/dashboard/shipping-request-management/partails/details-shipping-section.blade.php
@@ -16538,30 +16786,6 @@ vite.config.js
  98:         </table>
  99:     </div>
 100: </div>
-```
-
-## File: routes/channels.php
-```php
- 1: <?php
- 2: 
- 3: use App\Models\Conversation;
- 4: use Illuminate\Support\Facades\Broadcast;
- 5: 
- 6: Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
- 7:     return (int) $user->id === (int) $id;
- 8: });
- 9: 
-10: // هذه القناة ضرورية لعمل الإشعارات اللحظية — بدونها هيرفض السيرفر
-11: // أي اشتراك في القناة اللي بيبعت عليها NotificationBadgeUpdated
-12: Broadcast::channel('user.{id}', function ($user, $id) {
-13:     return (int) $user->id === (int) $id;
-14: });
-15: 
-16: Broadcast::channel('private-conversation.{conversationId}', function ($user, $conversationId) {
-17:     $conv = Conversation::find($conversationId);
-18:     if (!$conv) return false;
-19:     return $user->id === $conv->vendor_id || $user->id === $conv->user_id;
-20: });
 ```
 
 ## File: app/Http/Controllers/API/V1/Shared/CityController.php
@@ -16691,310 +16915,423 @@ vite.config.js
 69: }
 ```
 
-## File: app/Traits/NotificationsTrait.php
+## File: app/Providers/AppServiceProvider.php
 ```php
  1: <?php
  2: 
- 3: namespace App\Traits;
+ 3: namespace App\Providers;
  4: 
  5: use App\Enums\user\UserRoleEnum;
- 6: use App\Utils\FcmNotificationUtils;
- 7: use App\Models\User;
- 8: use App\Notifications\SendNotification;
- 9: use Illuminate\Http\Request;
-10: 
-11: trait NotificationsTrait
-12: {
-13: 
-14:     public function notifyToAdmin($title, $body)
-15:     {
-16:         $admins = User::role([UserRoleEnum::Super_Admin->value, UserRoleEnum::Admin->value], 'admin')->get();
-17:         foreach ($admins as $admin) {
-18:             $admin->notify(new SendNotification(title: $title, body: $body));
-19:         }
-20:     }
-21: 
-22:     public function notifyRequestToEligibleVendors($vendors, $requestId = null)
-23:     {
-24:         foreach ($vendors as $vendor) {
-25:             $user = User::where('id', $vendor->user_id)->first(['id', 'fcm_token']);
-26:             if ($user) {
-27:                 $user->notify(new SendNotification(title: 'طلب جديد', body: 'تم اضافة طلب جديد', category: 'customer_requests', targetId: $requestId));
-28:                 (new FcmNotificationUtils())->setTitle('طلب جديد')->setBody('تم اضافة طلب جديد')->setCategory('customer_requests')->setToken($user->fcm_token)->send();
-29:             }
-30:         }
-31:     }
-32: 
-33:     public function notifyByID($userId, $title, $body, $notifyDB = true, $category = 'conversations', $targetId = null, array $extraData = [])
-34:     {
-35:         $user = User::where('id', $userId)->first(['id', 'fcm_token']);
-36:         if ($user) {
-37:             if ($notifyDB) {
-38:                 $user->notify(new SendNotification(title: $title, body: $body, category: $category, targetId: $targetId));
-39:             }
-40:             (new FcmNotificationUtils())
-41:                 ->setTitle($title)
-42:                 ->setBody($body)
-43:                 ->setCategory($category)
-44:                 ->setExtraData($extraData)
-45:                 ->setToken($user->fcm_token)
-46:                 ->send();
-47:         }
-48:     }
-49: 
-50:     public function getNotifications(Request $request)
-51:     {
-52:         $user = currUserHelper();
-53:         $notifications = $user->notifications()
-54:             ->select('id', 'data', 'created_at')
-55:             ->orderBy('created_at', 'desc')
-56:             ->paginate(20);
-57: 
-58:         $notifications->getCollection()->transform(function ($item) {
-59:             $data = $item->data;
-60: 
-61:             return [
-62:                 'id' => $item->id,
-63:                 'title' => $data['title'] ?? null,
-64:                 'body' => $data['body'] ?? null,
-65:                 'created_at' => $item->created_at->format('Y-m-d H:i'),
-66:             ];
-67:         });
-68: 
-69:         // return buildApiResponseHelper(true, 'تم التحميل بنجاح', [
-70:         //     'current_page' => $result->currentPage(),
-71:         //     'last_page' => $result->lastPage(),
-72:         //     'data' => $result->items(),
-73:         // ]);
-74: 
-75:         return buildApiResponseHelper(true, 'تم التحميل بنجاح', [
-76:             'current_page' => $notifications->currentPage(),
-77:             'last_page' => $notifications->lastPage(),
-78:             'total' => $notifications->total(),
-79:             'per_page' => $notifications->perPage(),
-80:             'data' => $notifications->items(),
-81:         ]);
-82:     }
-83: }
+ 6: use App\Events\NotificationBadgeUpdated;
+ 7: use App\Models\BrandCar;
+ 8: use App\Models\Category;
+ 9: use App\Models\CategoryHasBrandField;
+10: use App\Models\City;
+11: use App\Models\CustomField;
+12: use App\Notifications\SendNotification;
+13: use App\Observers\BrandCarObserver;
+14: use App\Observers\CategoryHasBrandFieldObserver;
+15: use App\Observers\CategoryObserver;
+16: use App\Observers\CityObserver;
+17: use App\Observers\CustomFieldObserver;
+18: use Illuminate\Notifications\Events\NotificationSent;
+19: use Illuminate\Support\Facades\Event;
+20: use Illuminate\Support\Facades\Gate;
+21: use Illuminate\Support\Facades\Log;
+22: use Illuminate\Support\ServiceProvider;
+23: 
+24: class AppServiceProvider extends ServiceProvider
+25: {
+26:     /**
+27:      * Register any application services.
+28:      */
+29:     public function register(): void
+30:     {
+31:         //
+32:     }
+33: 
+34:     /**
+35:      * Bootstrap any application services.
+36:      */
+37:     public function boot(): void
+38:     {
+39:         City::observe(CityObserver::class);
+40:         BrandCar::observe(BrandCarObserver::class);
+41:         Category::observe(CategoryObserver::class);
+42:         CategoryHasBrandField::observe(CategoryHasBrandFieldObserver::class);
+43:         CustomField::observe(CustomFieldObserver::class);
+44: 
+45:         // Implicitly grant "Super Admin" role all permissions
+46:         // This works in the app by using gate-related functions like auth()->user->can() and @can()
+47:         Gate::before(function ($user, $ability) {
+48:             return $user->hasRole(UserRoleEnum::Super_Admin->value) ? true : null;
+49:         });
+50: 
+51:         if ($this->app->environment('production') || env('FORCE_HTTPS', false)) {
+52:             \Illuminate\Support\Facades\URL::forceScheme('https');
+53:         }
+54: 
+55:         // Whenever a SendNotification is delivered (via ->notify()), also
+56:         // broadcast NotificationBadgeUpdated on the user's private channel
+57:         // so the Flutter app updates in real time instead of relying on
+58:         // polling. This fires automatically for every current and future
+59:         // ->notify(new SendNotification(...)) call in the app — no need
+60:         // to touch each call site individually.
+61:         //
+62:         // Wrapped in try/catch: broadcasting depends on an external
+63:         // WebSocket server (Reverb) being reachable. If it's down/misconfigured,
+64:         // this must NEVER break the request that triggered the notification
+65:         // (e.g. confirming an order). We log the failure and move on.
+66:         Event::listen(function (NotificationSent $event) {
+67:             if ($event->notification instanceof SendNotification) {
+68:                 try {
+69:                     NotificationBadgeUpdated::dispatch(
+70:                         $event->notifiable->id,
+71:                         $event->notification->toArray($event->notifiable)['category'] ?? null,
+72:                         []
+73:                     );
+74:                 } catch (\Throwable $e) {
+75:                     Log::error('Broadcast failed for NotificationBadgeUpdated: ' . $e->getMessage(), [
+76:                         'notifiable_id' => $event->notifiable->id ?? null,
+77:                     ]);
+78:                 }
+79:             }
+80:         });
+81:     }
+82: }
 ```
 
-## File: app/Utils/OTOServiceUtils.php
+## File: app/Utils/FcmNotificationUtils.php
 ```php
   1: <?php
   2: 
   3: namespace App\Utils;
   4: 
-  5: use Illuminate\Support\Facades\Http;
-  6: use Illuminate\Support\Facades\Log;
-  7: 
-  8: class OTOServiceUtils
-  9: {
- 10:     public function getBaseUrl(): string
- 11:     {
- 12:         $url = config('services.oto.url');
- 13:         if (empty($url)) {
- 14:             $url = env('OTO_API_URL', 'https://api.tryoto.com/rest/v2');
- 15:         }
- 16:         return rtrim($url, '/');
- 17:     }
- 18: 
- 19:     public function getRefreshToken(): string
- 20:     {
- 21:         $token = config('services.oto.refresh_token');
- 22:         if (empty($token)) {
- 23:             $token = env('OTO_REFRESH_TOKEN', 'AMf-vBwsG7J61J_1EkBNW_wnKdQc4Xyalpz59J1QittknHfsekYzdv-1sDxoeD1oaw5_OBxmnVtjkwzm7nAUsfkEZoZpmMQtAINMhJLIWxAiJ1xnX9IY4ksBrIGoiGFG1ULhV8nT-a7ucNxD28bjK-cf6bOPEVWYpVDdQToxKpvgEXp2yQTujA3HT5XMIo_x31f1k6I41WA3pdKzsrwSCU_NQSijp1oBxQ');
- 24:         }
- 25:         return $token ?? '';
- 26:     }
- 27: 
- 28:     public function getAccessTokenOTO()
- 29:     {
- 30:         try {
- 31:             $response = Http::timeout(15)->post(
- 32:                 $this->getBaseUrl() . '/refreshToken',
- 33:                 [
- 34:                     'refresh_token' => $this->getRefreshToken(),
- 35:                 ]
- 36:             );
- 37: 
- 38:             if ($response->ok()) {
- 39:                 $data = $response->json();
- 40:                 return $data['access_token'] ?? '';
- 41:             }
- 42: 
- 43:             Log::error('OTO Refresh Token Failed: ' . $response->status() . ' - ' . $response->body());
- 44:             return '';
- 45:         } catch (\Exception $e) {
- 46:             Log::error('OTO Refresh Token Exception: ' . $e->getMessage());
- 47:             return '';
- 48:         }
- 49:     }
- 50: 
- 51:     public function checkDeliveryFeeAndGetCheapest($accessToken, $originCity, $destinationCity, $width, $length, $height, $weight)
- 52:     {
- 53:         $w = (float) ($width ?: 10);
- 54:         $l = (float) ($length ?: 10);
- 55:         $h = (float) ($height ?: 10);
- 56:         $wt = (float) ($weight ?: 1);
- 57: 
- 58:         $dataBody = [
- 59:             'originCity' => $originCity ?? '',
- 60:             'destinationCity' => $destinationCity ?? '',
- 61:             'boxes' => [
- 62:                 [
- 63:                     'boxName' => 'Box1',
- 64:                     'width' => $w,
- 65:                     'length' => $l,
- 66:                     'height' => $h,
- 67:                     'weight' => $wt,
- 68:                 ]
- 69:             ],
- 70:             'width' => $w,
- 71:             'length' => $l,
- 72:             'height' => $h,
- 73:             'weight' => $wt,
- 74:             'isCod' => true,
- 75:         ];
- 76: 
- 77:         try {
- 78:             $response = Http::timeout(15)->withHeaders([
- 79:                 'Authorization' => 'Bearer ' . $accessToken,
- 80:                 'Accept' => 'application/json',
- 81:             ])
- 82:                 ->post($this->getBaseUrl() . '/checkOTODeliveryFee', $dataBody);
- 83: 
- 84:             if ($response->ok()) {
- 85:                 $result = $response->json();
- 86:                 if (isset($result['success']) && $result['success'] == false) {
- 87:                     Log::warning('OTO checkDeliveryFee Warning: ', $result);
- 88:                     return null;
- 89:                 }
- 90: 
- 91:                 $companies = $result['deliveryCompany'] ?? [];
- 92:                 if (empty($companies)) {
- 93:                     return null;
- 94:                 }
- 95: 
- 96:                 $cheapest = collect($companies)->sortBy('price')->first();
- 97:                 return $cheapest;
- 98:             }
- 99: 
-100:             Log::error('OTO checkDeliveryFee Error: ' . $response->status() . ' - ' . $response->body());
-101:             return null;
-102:         } catch (\Exception $e) {
-103:             Log::error('OTO checkDeliveryFee Exception: ' . $e->getMessage());
-104:             return null;
-105:         }
-106:     }
-107: 
-108:     public function createOrder($orderData, $token)
-109:     {
-110:         try {
-111:             $response = Http::timeout(15)->withToken($token)
-112:                 ->post($this->getBaseUrl() . '/createOrder', $orderData)
-113:                 ->json();
+  5: use Exception;
+  6: use GuzzleHttp\Client as GuzzleClient;
+  7: use Google_Client;
+  8: use Illuminate\Support\Facades\Cache;
+  9: use Illuminate\Support\Facades\Log;
+ 10: 
+ 11: 
+ 12: class FcmNotificationUtils
+ 13: {
+ 14:     protected $title;
+ 15:     protected $body;
+ 16:     protected $icon;
+ 17:     protected $click_action;
+ 18:     protected $token;
+ 19:     protected $topic;
+ 20:     protected $category;
+ 21:     protected $extraData = [];
+ 22: 
+ 23:     public function setExtraData(array $extraData)
+ 24:     {
+ 25:         $this->extraData = $extraData;
+ 26:         return $this;
+ 27:     }
+ 28: 
+ 29:     public function setCategory($category)
+ 30:     {
+ 31:         $this->category = $category;
+ 32:         return $this;
+ 33:     }
+ 34: 
+ 35:     /**
+ 36:      *Title of the notification.
+ 37:      *@param string $title
+ 38:      */
+ 39:     public function setTitle($title)
+ 40:     {
+ 41:         $this->title = $title;
+ 42:         return $this;
+ 43:     }
+ 44: 
+ 45:     /**
+ 46:      *Body of the notification.
+ 47:      *@param string $body
+ 48:      */
+ 49:     public function setBody($body)
+ 50:     {
+ 51:         $this->body = $body;
+ 52:         return $this;
+ 53:     }
+ 54: 
+ 55:     /**
+ 56:      *Icon of the notification.
+ 57:      *@param string $icon
+ 58:      */
+ 59:     public function setIcon($icon)
+ 60:     {
+ 61:         $this->icon = $icon;
+ 62:         return $this;
+ 63:     }
+ 64: 
+ 65:     /**
+ 66:      *Link of the notification when user click on it.
+ 67:      *@param string $click_action
+ 68:      */
+ 69:     public function setClickAction($click_action)
+ 70:     {
+ 71:         $this->click_action = $click_action;
+ 72:         return $this;
+ 73:     }
+ 74: 
+ 75:     /**
+ 76:      *Token used to send notification to specific device. Unusable with setTopic() at same time.
+ 77:      *@param string $string
+ 78:      */
+ 79:     public function setToken($token)
+ 80:     {
+ 81:         $this->token = $token;
+ 82:         return $this;
+ 83:     }
+ 84: 
+ 85:     /**
+ 86:      *Topic of the notification. Unusable with setToken() at same time.
+ 87:      *@param string $topic
+ 88:      */
+ 89:     public function setTopic($topic)
+ 90:     {
+ 91:         $this->topic = $topic;
+ 92:         return $this;
+ 93:     }
+ 94: 
+ 95:     /**
+ 96:      * Verify the conformity of the notification. If everything is ok, send the notification.
+ 97:      */
+ 98:     public function send()
+ 99:     {
+100:         // Token and topic combinaison verification
+101:         if ($this->token != null && $this->topic != null) {
+102:             return;
+103:         }
+104: 
+105:         // Empty token or topic verification
+106:         if ($this->token == null && $this->topic == null) {
+107:             return;
+108:         }
+109: 
+110:         // Title verification
+111:         if (!isset($this->title)) {
+112:             return;
+113:         }
 114: 
-115:             return $response;
-116:         } catch (\Exception $e) {
-117:             Log::error('OTO createOrder Exception: ' . $e->getMessage());
-118:             return null;
-119:         }
-120:     }
-121: }
+115:         // Body verification
+116:         if (!isset($this->body)) {
+117:             return;
+118:         }
+119: 
+120:         return $this->prepareSend();
+121:     }
+122: 
+123:     private function prepareSend()
+124:     {
+125:         $dataArr = array_merge([
+126:             'click_action' => $this->click_action ?? 'FLUTTER_NOTIFICATION_CLICK',
+127:             'status' => 'done',
+128:             'type_notification' => 'all',
+129:             'category' => $this->category ?? 'conversations',
+130:             'screen' => 'NotificationsScreen',
+131:         ], $this->extraData ?? []);
+132: 
+133:         if (isset($this->topic)) {
+134:             $json = [
+135:                 "message" => [
+136:                     "topic" => $this->topic,
+137:                     "notification" => [
+138:                         "title" => $this->title,
+139:                         "body" => $this->body,
+140:                     ],
+141:                     'data' => $dataArr,
+142:                 ]
+143:             ];
+144:         } else if (isset($this->token)) {
+145:             $json = [
+146:                 "message" => [
+147:                     "token" => $this->token,
+148:                     "notification" => [
+149:                         "title" => $this->title,
+150:                         "body" => $this->body,
+151:                     ],
+152:                     'data' => $dataArr,
+153:                 ]
+154:             ];
+155:         }
+156: 
+157:         // $encodedData = json_encode($data);
+158: 
+159:         return $this->handleSend($json);
+160:     }
+161: 
+162:     private function handleSend($json)
+163:     {
+164:         try {
+165:             $client = new GuzzleClient();
+166:             // project_id = mazad-ibraa
+167:             $response = $client->post('https://fcm.googleapis.com/v1/projects/car-mediator-platform/messages:send', [
+168:                 'headers' => [
+169:                     'Authorization' => 'Bearer ' . $this->getAccessToken(),
+170:                     'Content-Type' => 'application/json',
+171:                 ],
+172:                 'json' => $json,
+173:             ]);
+174: 
+175:             return $response ?? '';
+176:         } catch (Exception $e) {
+177:             Log::error("[Notification] ERROR", [$e->getMessage()]);
+178: 
+179:             return $e;
+180:         }
+181:     }
+182: 
+183:     private function getAccessToken()
+184:     {
+185:         return Cache::remember('fcm_access_token_key', 3500, function () {
+186:             $client = new Google_Client();
+187:             
+188:             // Check for env variable first (for Railway)
+189:             $envCredentials = env('FIREBASE_CREDENTIALS');
+190:             $credentialsPath = storage_path('app/json/firebase/car-mediator-platform-firebase-adminsdk-fbsvc-1d8876fe49.json');
+191:             
+192:             if (!empty($envCredentials)) {
+193:                 $client->setAuthConfig(json_decode($envCredentials, true));
+194:             } elseif (file_exists($credentialsPath)) {
+195:                 $client->setAuthConfig($credentialsPath);
+196:             } else {
+197:                 throw new Exception("Firebase credentials not found. Please set FIREBASE_CREDENTIALS env var or add the json file.");
+198:             }
+199: 
+200:             $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
+201: 
+202:             $token = $client->fetchAccessTokenWithAssertion();
+203:             return $token['access_token'];
+204:         });
+205:     }
+206: }
 ```
 
-## File: composer.json
-```json
- 1: {
- 2:     "$schema": "https://getcomposer.org/schema.json",
- 3:     "name": "laravel/laravel",
- 4:     "type": "project",
- 5:     "description": "The skeleton application for the Laravel framework.",
- 6:     "keywords": [
- 7:         "laravel",
- 8:         "framework"
- 9:     ],
-10:     "license": "MIT",
-11:     "require": {
-12:         "php": "^8.4",
-13:         "google/apiclient": "^2.18",
-14:         "laravel/breeze": "^2.3",
-15:         "laravel/framework": "^13.0",
-16:         "laravel/reverb": "^1.0",
-17:         "laravel/sanctum": "^4.0",
-18:         "laravel/tinker": "^3.0",
-19:         "spatie/laravel-permission": "^6.21",
-20:         "twilio/sdk": "^8.8"
-21:     },
-22:     "require-dev": {
-23:         "fakerphp/faker": "^1.23",
-24:         "laravel/pail": "^1.2.2",
-25:         "laravel/pint": "^1.13",
-26:         "laravel/sail": "^1.41",
-27:         "mockery/mockery": "^1.6",
-28:         "nunomaduro/collision": "^8.6",
-29:         "phpunit/phpunit": "^11.5.3"
-30:     },
-31:     "autoload": {
-32:         "files": [
-33:             "app/Helpers/Helper.php"
-34:         ],
-35:         "psr-4": {
-36:             "App\\": "app/",
-37:             "Database\\Factories\\": "database/factories/",
-38:             "Database\\Seeders\\": "database/seeders/"
-39:         }
-40:     },
-41:     "autoload-dev": {
-42:         "psr-4": {
-43:             "Tests\\": "tests/"
-44:         }
-45:     },
-46:     "scripts": {
-47:         "post-autoload-dump": [
-48:             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-49:             "@php artisan package:discover --ansi"
-50:         ],
-51:         "post-update-cmd": [
-52:             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
-53:         ],
-54:         "post-root-package-install": [
-55:             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
-56:         ],
-57:         "post-create-project-cmd": [
-58:             "@php artisan key:generate --ansi",
-59:             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
-60:             "@php artisan migrate --graceful --ansi"
-61:         ],
-62:         "dev": [
-63:             "Composer\\Config::disableProcessTimeout",
-64:             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite"
-65:         ],
-66:         "test": [
-67:             "@php artisan config:clear --ansi",
-68:             "@php artisan test"
-69:         ]
-70:     },
-71:     "extra": {
-72:         "laravel": {
-73:             "dont-discover": []
-74:         }
-75:     },
-76:     "config": {
-77:         "platform": {
-78:             "php": "8.4.1"
-79:         },
-80:         "optimize-autoloader": false,
-81:         "preferred-install": "dist",
-82:         "sort-packages": true,
-83:         "allow-plugins": {
-84:             "pestphp/pest-plugin": true,
-85:             "php-http/discovery": true
-86:         }
-87:     },
-88:     "minimum-stability": "stable",
-89:     "prefer-stable": true
-90: }
+## File: config/mail.php
+```php
+  1: <?php
+  2: 
+  3: return [
+  4: 
+  5:     /*
+  6:     |--------------------------------------------------------------------------
+  7:     | Default Mailer
+  8:     |--------------------------------------------------------------------------
+  9:     |
+ 10:     | This option controls the default mailer that is used to send all email
+ 11:     | messages unless another mailer is explicitly specified when sending
+ 12:     | the message. All additional mailers can be configured within the
+ 13:     | "mailers" array. Examples of each type of mailer are provided.
+ 14:     |
+ 15:     */
+ 16: 
+ 17:     'default' => env('MAIL_MAILER', 'log'),
+ 18: 
+ 19:     /*
+ 20:     |--------------------------------------------------------------------------
+ 21:     | Mailer Configurations
+ 22:     |--------------------------------------------------------------------------
+ 23:     |
+ 24:     | Here you may configure all of the mailers used by your application plus
+ 25:     | their respective settings. Several examples have been configured for
+ 26:     | you and you are free to add your own as your application requires.
+ 27:     |
+ 28:     | Laravel supports a variety of mail "transport" drivers that can be used
+ 29:     | when delivering an email. You may specify which one you're using for
+ 30:     | your mailers below. You may also add additional mailers if needed.
+ 31:     |
+ 32:     | Supported: "smtp", "sendmail", "mailgun", "ses", "ses-v2",
+ 33:     |            "postmark", "resend", "log", "array",
+ 34:     |            "failover", "roundrobin"
+ 35:     |
+ 36:     */
+ 37: 
+ 38:     'mailers' => [
+ 39: 
+ 40:         'smtp' => [
+ 41:             'transport' => 'smtp',
+ 42:             'scheme' => env('MAIL_SCHEME'),
+ 43:             'url' => env('MAIL_URL'),
+ 44:             'host' => env('MAIL_HOST', '127.0.0.1'),
+ 45:             'port' => env('MAIL_PORT', 2525),
+ 46:             'username' => env('MAIL_USERNAME'),
+ 47:             'password' => env('MAIL_PASSWORD'),
+ 48:             'encryption' => env('MAIL_ENCRYPTION', 'tls'),
+ 49:             'timeout' => env('MAIL_TIMEOUT', 5),
+ 50:             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+ 51:         ],
+ 52: 
+ 53:         'ses' => [
+ 54:             'transport' => 'ses',
+ 55:         ],
+ 56: 
+ 57:         'postmark' => [
+ 58:             'transport' => 'postmark',
+ 59:             // 'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID'),
+ 60:             // 'client' => [
+ 61:             //     'timeout' => 5,
+ 62:             // ],
+ 63:         ],
+ 64: 
+ 65:         'resend' => [
+ 66:             'transport' => 'resend',
+ 67:         ],
+ 68: 
+ 69:         'sendmail' => [
+ 70:             'transport' => 'sendmail',
+ 71:             'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -bs -i'),
+ 72:         ],
+ 73: 
+ 74:         'log' => [
+ 75:             'transport' => 'log',
+ 76:             'channel' => env('MAIL_LOG_CHANNEL'),
+ 77:         ],
+ 78: 
+ 79:         'array' => [
+ 80:             'transport' => 'array',
+ 81:         ],
+ 82: 
+ 83:         'failover' => [
+ 84:             'transport' => 'failover',
+ 85:             'mailers' => [
+ 86:                 'smtp',
+ 87:                 'log',
+ 88:             ],
+ 89:             'retry_after' => 60,
+ 90:         ],
+ 91: 
+ 92:         'roundrobin' => [
+ 93:             'transport' => 'roundrobin',
+ 94:             'mailers' => [
+ 95:                 'ses',
+ 96:                 'postmark',
+ 97:             ],
+ 98:             'retry_after' => 60,
+ 99:         ],
+100: 
+101:     ],
+102: 
+103:     /*
+104:     |--------------------------------------------------------------------------
+105:     | Global "From" Address
+106:     |--------------------------------------------------------------------------
+107:     |
+108:     | You may wish for all emails sent by your application to be sent from
+109:     | the same address. Here you may specify a name and address that is
+110:     | used globally for all emails that are sent by your application.
+111:     |
+112:     */
+113: 
+114:     'from' => [
+115:         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+116:         'name' => env('MAIL_FROM_NAME', 'Example'),
+117:     ],
+118: 
+119: ];
 ```
 
 ## File: database/migrations/2026_08_28_000000_add_packages_to_shipping_requests_table.php
@@ -17063,164 +17400,159 @@ vite.config.js
 39: });
 ```
 
-## File: app/Http/Controllers/API/V1/User/Requests/RequestController.php
+## File: composer.json
+```json
+ 1: {
+ 2:     "$schema": "https://getcomposer.org/schema.json",
+ 3:     "name": "laravel/laravel",
+ 4:     "type": "project",
+ 5:     "description": "The skeleton application for the Laravel framework.",
+ 6:     "keywords": [
+ 7:         "laravel",
+ 8:         "framework"
+ 9:     ],
+10:     "license": "MIT",
+11:     "require": {
+12:         "php": "^8.4",
+13:         "google/apiclient": "^2.18",
+14:         "laravel/breeze": "^2.3",
+15:         "laravel/framework": "^13.0",
+16:         "laravel/reverb": "^1.0",
+17:         "laravel/sanctum": "^4.0",
+18:         "laravel/tinker": "^3.0",
+19:         "spatie/laravel-permission": "^6.21",
+20:         "twilio/sdk": "^8.8",
+21:         "ext-pcntl": "*",
+22:         "ext-posix": "*"
+23:     },
+24:     "require-dev": {
+25:         "fakerphp/faker": "^1.23",
+26:         "laravel/pail": "^1.2.2",
+27:         "laravel/pint": "^1.13",
+28:         "laravel/sail": "^1.41",
+29:         "mockery/mockery": "^1.6",
+30:         "nunomaduro/collision": "^8.6",
+31:         "phpunit/phpunit": "^11.5.3"
+32:     },
+33:     "autoload": {
+34:         "files": [
+35:             "app/Helpers/Helper.php"
+36:         ],
+37:         "psr-4": {
+38:             "App\\": "app/",
+39:             "Database\\Factories\\": "database/factories/",
+40:             "Database\\Seeders\\": "database/seeders/"
+41:         }
+42:     },
+43:     "autoload-dev": {
+44:         "psr-4": {
+45:             "Tests\\": "tests/"
+46:         }
+47:     },
+48:     "scripts": {
+49:         "post-autoload-dump": [
+50:             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+51:             "@php artisan package:discover --ansi"
+52:         ],
+53:         "post-update-cmd": [
+54:             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+55:         ],
+56:         "post-root-package-install": [
+57:             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+58:         ],
+59:         "post-create-project-cmd": [
+60:             "@php artisan key:generate --ansi",
+61:             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
+62:             "@php artisan migrate --graceful --ansi"
+63:         ],
+64:         "dev": [
+65:             "Composer\\Config::disableProcessTimeout",
+66:             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite"
+67:         ],
+68:         "test": [
+69:             "@php artisan config:clear --ansi",
+70:             "@php artisan test"
+71:         ]
+72:     },
+73:     "extra": {
+74:         "laravel": {
+75:             "dont-discover": []
+76:         }
+77:     },
+78:     "config": {
+79:         "platform": {
+80:             "php": "8.4.1",
+81:             "ext-pcntl": "8.4.1",
+82:             "ext-posix": "8.4.1"
+83:         },
+84:         "optimize-autoloader": false,
+85:         "preferred-install": "dist",
+86:         "sort-packages": true,
+87:         "allow-plugins": {
+88:             "pestphp/pest-plugin": true,
+89:             "php-http/discovery": true
+90:         }
+91:     },
+92:     "minimum-stability": "stable",
+93:     "prefer-stable": true
+94: }
+```
+
+## File: nixpacks.toml
+```toml
+1: [variables]
+2: NIXPACKS_PHP_EXTENSIONS = 'pcntl,posix,pdo,pdo_mysql,mbstring,openssl,tokenizer,xml,ctype,json'
+3: 
+4: [phases.setup]
+5: nixPkgs = ['php84', 'php84Packages.composer']
+```
+
+## File: routes/channels.php
 ```php
-  1: <?php
-  2: 
-  3: namespace App\Http\Controllers\API\V1\User\Requests;
-  4: 
-  5: use App\Exceptions\CustomResponseException;
-  6: use App\Http\Controllers\Controller;
-  7: use App\Http\Requests\User\Request\{CheckEligibleVendorsRequest, ConfirmOrderRequest, ConfirmPriceShippingRequest, ConfirmShippingRequest};
-  8: use App\Http\Services\User\Requests\RequestService;
-  9: use App\Models\ShippingRequest;
- 10: use App\Models\Vendor;
- 11: use App\Traits\NotificationsTrait;
- 12: use App\Utils\ConfigUtils;
- 13: use App\Utils\OTOServiceUtils;
- 14: use Exception;
- 15: use Illuminate\Http\Request;
- 16: use Illuminate\Support\Facades\DB;
- 17: use Illuminate\Support\Facades\Log;
- 18: use Illuminate\Support\Facades\Http;
- 19: 
- 20: class RequestController extends Controller
- 21: {
- 22:     use NotificationsTrait;
- 23: 
- 24:     public function __construct(protected RequestService $requestService, protected OTOServiceUtils $otoServiceUtils) {}
- 25: 
- 26:     public function checkEligibleVendors(CheckEligibleVendorsRequest $request)
- 27:     {
- 28:         $count = $this->requestService->countFilterEligibleVendors($request);
- 29: 
- 30:         return ($count == 0)
- 31:             ? buildApiResponseHelper(false, 'لم يتم العثور على شركات مؤهلة تلبي شروط ')
- 32:             : buildApiResponseHelper(true, 'تم العثور على ( ' . $count . ' ) شركة مؤهلة تلبي شروط طلبك');
- 33:     }
- 34: 
- 35:     public function confirmRequest(ConfirmOrderRequest $request)
- 36:     {
- 37:         DB::beginTransaction();
- 38:         try {
- 39:             $eligibleVendors = $this->requestService->confirmRequest($request);
- 40: 
- 41:             DB::commit();
- 42:             $this->notifyRequestToEligibleVendors($eligibleVendors);
- 43: 
- 44:             return buildApiResponseHelper(true, 'تم إرسال الطلب بنجاح ... سيتم الرد عليك من خلال الشركات المؤهلة لاحقاً');
- 45:         } catch (Exception $e) {
- 46:             DB::rollBack();
- 47:             report($e);
- 48:             throw new CustomResponseException("حدث خطاء أثنا تأكيد الطلب ... الرجاء المحاولة مرة أخرى");
- 49:         }
- 50:     }
- 51: 
- 52:     public function ConfirmShippingRequest(ConfirmShippingRequest $request)
- 53:     {
- 54:         try {
- 55:             $shippingRequest = ShippingRequest::where('request_id', $request->requestId)->where('response_id', $request->responseId)->latest()->first();
- 56: 
- 57:             if (!$shippingRequest) {
- 58:                 return buildApiResponseHelper(false, 'لا يوجد شحنة لهذا الطلب');
- 59:             }
- 60: 
- 61:             $originCity = trim($shippingRequest->city_origin_vendor ?? '');
- 62:             if (empty($originCity) || $originCity === 'مدينة غير محددة') {
- 63:                 $originCity = 'الرياض';
- 64:             }
- 65: 
- 66:             $destinationCity = trim($request->cityOriginDimensions ?? '');
- 67:             if (empty($destinationCity)) {
- 68:                 $destinationCity = 'الرياض';
- 69:             }
- 70: 
- 71:             $w = (float) ($shippingRequest->width ?: 10);
- 72:             $l = (float) ($shippingRequest->length ?: 10);
- 73:             $h = (float) ($shippingRequest->height ?: 10);
- 74:             $wt = (float) ($shippingRequest->weight ?: 1);
- 75: 
- 76:             $dataBody = [
- 77:                 'originCity' => $originCity,
- 78:                 'destinationCity' => $destinationCity,
- 79:                 'boxes' => [
- 80:                     [
- 81:                         'boxName' => 'Box1',
- 82:                         'width' => $w,
- 83:                         'length' => $l,
- 84:                         'height' => $h,
- 85:                         'weight' => $wt,
- 86:                     ]
- 87:                 ],
- 88:                 'width' => $w,
- 89:                 'length' => $l,
- 90:                 'height' => $h,
- 91:                 'weight' => $wt,
- 92:                 'isCod' => true
- 93:             ];
- 94: 
- 95:             $token = $this->otoServiceUtils->getAccessTokenOTO();
- 96:             if (empty($token)) {
- 97:                 Log::error('OTO Access Token is empty in ConfirmShippingRequest');
- 98:                 return buildApiResponseHelper(false, 'تعذر الاتصال بشركة الشحن في الوقت الحالي ... الرجاء المحاولة لاحقاً');
- 99:             }
-100: 
-101:             $otoUrl = $this->otoServiceUtils->getBaseUrl();
-102:             $response = Http::timeout(15)->withHeaders([
-103:                 'Authorization' => 'Bearer ' . $token,
-104:                 'Accept' => 'application/json',
-105:             ])
-106:                 ->post($otoUrl . '/checkOTODeliveryFee', $dataBody);
-107: 
-108:             if ($response->ok()) {
-109:                 $result = $response->json();
-110:                 if (isset($result['success']) && $result['success'] == false) {
-111:                     Log::warning('OTO Delivery Fee Warning: ', $result);
-112:                     return buildApiResponseHelper(false, 'لا توجد شركات شحن متاحة لهذا المسار حالياً');
-113:                 }
-114: 
-115:                 $companies = $result['deliveryCompany'] ?? [];
-116:                 if (empty($companies)) {
-117:                     return buildApiResponseHelper(false, 'لا تتوفر شركات شحن متاحة حالياً');
-118:                 }
-119: 
-120:                 $cheapest = collect($companies)->sortBy('price')->first();
-121:                 $cheapestPrice = $cheapest['price'] ?? 0;
-122:                 $shippingRequest->update([
-123:                     'id_number_user' => $request->idNumberUser,
-124:                     'city_origin_dimensions' => $destinationCity,
-125:                     'address_origin_dimensions' => $request->addressOriginDimensions,
-126:                     'phone_origin_dimensions' => $request->phoneOriginDimensions,
-127:                     'fee_cheapest_shipping' => $cheapestPrice,
-128:                     'amount_rate_app' => ConfigUtils::getAmountRateAppForCharge(),
-129:                 ]);
-130: 
-131:                 return buildApiResponseHelper(true, 'السعر التقريبي للشحنة' . ' ' . ($cheapestPrice + ConfigUtils::getAmountRateAppForCharge()) . ' ريال' . ' - إضغط موافق لتاكيد الشحنة',  ['shippingRequestId' => $shippingRequest->id]);
-132:             }
-133: 
-134:             Log::error('OTO Delivery Fee Error: ' . $response->status() . ' - ' . $response->body());
-135:             return buildApiResponseHelper(false, 'تعذر جلب أسعار الشحن من شركة الشحن ... الرجاء المحاولة لاحقاً');
-136:         } catch (Exception $e) {
-137:             Log::error('ConfirmShippingRequest Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-138:             report($e);
-139:             return buildApiResponseHelper(false, 'حدث خطأ في تأكيد الشحنة ... الرجاء المحاولة مرة أخرى');
-140:         }
-141:     }
-142: 
-143:     public function confirmPriceShippingRequest(ConfirmPriceShippingRequest $request)
-144:     {
-145:         $updated = ShippingRequest::where('id', $request->id)->update([
-146:             'is_user_confirmed' => true
-147:         ]);
-148: 
-149:         if (!$updated)
-150:             return buildApiResponseHelper(false, 'حدث خطاء في تاكيد الشحنة ... الرجاء المحاولة مرة اخرى');
-151: 
-152:         $this->notifyToAdmin('طلب شحنة جديد', 'هناك طلب شحنة جديد ... طلب شحنة جديد');
-153: 
-154:         return buildApiResponseHelper(true, 'تم تاكيد الشحنة بنجاح');
-155:     }
-156: }
+ 1: <?php
+ 2: 
+ 3: use App\Models\Conversation;
+ 4: use Illuminate\Support\Facades\Broadcast;
+ 5: 
+ 6: Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
+ 7:     return (int) $user->id === (int) $id;
+ 8: });
+ 9: 
+10: Broadcast::channel('user.{id}', function ($user, $id) {
+11:     \Illuminate\Support\Facades\Log::info("Broadcast auth attempt on user.{$id} by user {$user->id}");
+12:     return (int) $user->id === (int) $id;
+13: });
+14: 
+15: Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {
+16:     $conv = Conversation::find($conversationId);
+17:     if (!$conv) {
+18:         \Illuminate\Support\Facades\Log::warning("Broadcast auth failed: Conversation {$conversationId} not found");
+19:         return false;
+20:     }
+21:     
+22:     $vendorUserId = \App\Models\Vendor::where('id', $conv->vendor_id)->value('user_id') ?: $conv->vendor_id;
+23:     
+24:     $allowed = (int) $user->id === (int) $vendorUserId || (int) $user->id === (int) $conv->user_id;
+25:     if (!$allowed) {
+26:         \Illuminate\Support\Facades\Log::warning("Broadcast auth forbidden: User {$user->id} not participant in conversation {$conversationId} (vendor user: {$vendorUserId}, client user: {$conv->user_id})");
+27:     }
+28:     return $allowed;
+29: });
+30: 
+31: Broadcast::channel('private-conversation.{conversationId}', function ($user, $conversationId) {
+32:     $conv = Conversation::find($conversationId);
+33:     if (!$conv) return false;
+34:     $vendorUserId = \App\Models\Vendor::where('id', $conv->vendor_id)->value('user_id') ?: $conv->vendor_id;
+35:     return (int) $user->id === (int) $vendorUserId || (int) $user->id === (int) $conv->user_id;
+36: });
+37: 
+38: Broadcast::channel('chat.{id1}.{id2}', function ($user, $id1, $id2) {
+39:     return (int) $user->id === (int) $id1 || (int) $user->id === (int) $id2;
+40: });
+41: 
+42: Broadcast::channel('private-chat.{id1}.{id2}', function ($user, $id1, $id2) {
+43:     return (int) $user->id === (int) $id1 || (int) $user->id === (int) $id2;
+44: });
 ```
 
 ## File: app/Http/Requests/User/Request/ConfirmOrderRequest.php
@@ -17635,123 +17967,6 @@ vite.config.js
 143: }
 ```
 
-## File: app/Http/Controllers/API/V1/Shared/Conversations/MessageConversationController.php
-```php
-  1: <?php
-  2: 
-  3: namespace App\Http\Controllers\API\V1\Shared\Conversations;
-  4: 
-  5: use App\Http\Controllers\Controller;
-  6: use App\Http\Services\Shared\ShippingService;
-  7: use App\Models\Conversation;
-  8: use App\Models\MessageConversation;
-  9: use App\Traits\NotificationsTrait;
- 10: use App\Utils\UploadUtils;
- 11: use Illuminate\Http\Request;
- 12: use Illuminate\Support\Facades\Log;
- 13: use Illuminate\Support\Facades\Validator;
- 14: 
- 15: class MessageConversationController extends Controller
- 16: {
- 17:     use NotificationsTrait;
- 18: 
- 19:     public function __construct(protected ShippingService $shippingService) {}
- 20: 
- 21:     public function index(Request $request, $conversationId)
- 22:     {
- 23:         $lastId = $request->query('last_message_id', 0);
- 24: 
- 25:         $messages = MessageConversation::where('conversation_id', $conversationId)
- 26:             ->where('id', '>', $lastId)
- 27:             ->select(
- 28:                 'id',
- 29:                 'sender_id',
- 30:                 'body',
- 31:                 'image',
- 32:                 'is_shipping_request',
- 33:                 'created_at as date_sent',
- 34:             )
- 35:             ->orderBy('id', 'asc')
- 36:             ->get();
- 37: 
- 38:         return buildApiResponseHelper(true, 'تم ارسال الرسالة بنجاح', $messages);
- 39:     }
- 40: 
- 41:     public function store(Request $request)
- 42:     {
- 43:         $validator = Validator::make($request->all(), [
- 44:             'conversationId' => 'required|exists:conversations,id',
- 45:             'requestId' => 'required|integer',
- 46:             'responseId' => 'required|integer',
- 47:             'body' => 'nullable|string',
- 48:             'isSendShippingRequest' => 'nullable|boolean',
- 49:             'shippingInfo' => 'nullable',
- 50:             'image' => 'nullable|image|mimes:png,jpg,jpeg,gif,webp|max:10000',
- 51:         ]);
- 52: 
- 53:         if ($validator->fails()) {
- 54:             return response()->json($validator->errors(), 422);
- 55:         }
- 56: 
- 57:         $userId = getCurrUserIdHelper();
- 58:         $receiverId = Conversation::getReceiverId($request->conversationId, $userId);
- 59: 
- 60:         $fileName = UploadUtils::uploadImageToStorage($request->image);
- 61: 
- 62:         $created = MessageConversation::create([
- 63:             'conversation_id' => $request->conversationId,
- 64:             'sender_id' => $userId,
- 65:             'body' => $request->body,
- 66:             'is_shipping_request' => $request->isSendShippingRequest,
- 67:             'image' => $fileName
- 68:         ]);
- 69: 
- 70: 
- 71:         if ($created) {
- 72:             $messagesNotify =  'رسالة جديدة من الطلب رقم' . ' ( ' . $request->requestId . ' )';
- 73:             if ($request->shippingInfo != null && $request->isSendShippingRequest == true && $request->shippingInfo != '') {
- 74:                 $shippingInfo = json_decode($request->shippingInfo, true);
- 75:                 $this->shippingService->storeShippingRequest(
- 76:                     requestId: $request->requestId,
- 77:                     responseId: $request->responseId,
- 78:                     orderNumber: 'REQ-' . $request->requestId . '-RES-' . $request->responseId . '-MSG-' . $created->id,
- 79:                     nameOriginVendor: $shippingInfo['name'] ?? null,
- 80:                     cityOriginVendor: !empty($shippingInfo['city']) ? $shippingInfo['city'] : 'الرياض',
- 81:                     addressOriginVendor: $shippingInfo['address'],
- 82:                     latOriginVendor: isset($shippingInfo['lat']) ? (float) $shippingInfo['lat'] : null,
- 83:                     lngOriginVendor: isset($shippingInfo['lng']) ? (float) $shippingInfo['lng'] : null,
- 84:                     phoneOriginVendor: $shippingInfo['phone'],
- 85:                     length: $shippingInfo['length'],
- 86:                     width: $shippingInfo['width'],
- 87:                     height: $shippingInfo['height'] ?? null,
- 88:                     weight: $shippingInfo['weight'] ?? null,
- 89:                     packages: isset($shippingInfo['packages']) ? json_encode($shippingInfo['packages']) : null
- 90:                 );
- 91:                 $messagesNotify =  'طلب شحن جديد من الطلب رقم' . ' ( ' . $request->requestId . ' )';
- 92:             }
- 93: 
- 94:             $this->notifyByID(
- 95:                 userId: $receiverId,
- 96:                 title: $messagesNotify,
- 97:                 body: $request->body,
- 98:                 notifyDB: false,
- 99:                 category: 'conversations',
-100:                 extraData: [
-101:                     'conversation_id' => (string) $request->conversationId,
-102:                     'message_id' => (string) $created->id,
-103:                     'sender_id' => (string) $userId,
-104:                     'body' => (string) ($request->body ?? ''),
-105:                     'image' => (string) ($fileName ?? ''),
-106:                     'is_shipping_request' => $request->isSendShippingRequest ? '1' : '0',
-107:                 ]
-108:             );
-109:         }
-110: 
-111:         return buildApiResponseHelper(true, 'تم ارسال الرسالة بنجاح');
-112:     }
-113: }
-```
-
 ## File: app/Http/Controllers/API/V1/User/VendorProfileController.php
 ```php
   1: <?php
@@ -17868,6 +18083,348 @@ vite.config.js
 112:         return buildApiResponseHelper(true, 'تم إضافة التقييم بنجاح', ['new_rating' => $avgRating]);
 113:     }
 114: }
+```
+
+## File: app/Utils/OTOServiceUtils.php
+```php
+  1: <?php
+  2: 
+  3: namespace App\Utils;
+  4: 
+  5: use Illuminate\Support\Facades\Http;
+  6: use Illuminate\Support\Facades\Log;
+  7: 
+  8: class OTOServiceUtils
+  9: {
+ 10:     public function getBaseUrl(): string
+ 11:     {
+ 12:         $url = config('services.oto.url');
+ 13:         if (empty($url)) {
+ 14:             $url = env('OTO_API_URL', 'https://api.tryoto.com/rest/v2');
+ 15:         }
+ 16:         return rtrim($url, '/');
+ 17:     }
+ 18: 
+ 19:     public static function sanitizeCity(?string $cityInput): string
+ 20:     {
+ 21:         $city = trim($cityInput ?? '');
+ 22:         if (empty($city) || $city === 'مدينة غير محددة') {
+ 23:             return 'Riyadh';
+ 24:         }
+ 25: 
+ 26:         $mapping = [
+ 27:             'الرياض' => 'Riyadh',
+ 28:             'riyadh' => 'Riyadh',
+ 29:             'مكة' => 'Makkah',
+ 30:             'makkah' => 'Makkah',
+ 31:             'mecca' => 'Makkah',
+ 32:             'جده' => 'Jeddah',
+ 33:             'جدة' => 'Jeddah',
+ 34:             'jeddah' => 'Jeddah',
+ 35:             'المدينة' => 'Madinah',
+ 36:             'مدينه' => 'Madinah',
+ 37:             'مدينة' => 'Madinah',
+ 38:             'madinah' => 'Madinah',
+ 39:             'medina' => 'Madinah',
+ 40:             'القصيم' => 'Qassim',
+ 41:             'قصيم' => 'Qassim',
+ 42:             'qassim' => 'Qassim',
+ 43:             'الشرقية' => 'Dammam',
+ 44:             'الشرقيه' => 'Dammam',
+ 45:             'eastern province' => 'Dammam',
+ 46:             'eastern' => 'Dammam',
+ 47:             'الدمام' => 'Dammam',
+ 48:             'دمام' => 'Dammam',
+ 49:             'dammam' => 'Dammam',
+ 50:             'الخبر' => 'Khobar',
+ 51:             'khobar' => 'Khobar',
+ 52:             'عسير' => 'Asir',
+ 53:             'asir' => 'Asir',
+ 54:             'تبوك' => 'Tabuk',
+ 55:             'tabuk' => 'Tabuk',
+ 56:             'حائل' => 'Hail',
+ 57:             'hail' => 'Hail',
+ 58:             'الحدود الشمالية' => 'Northern Borders',
+ 59:             'northern' => 'Northern Borders',
+ 60:             'نجران' => 'Najran',
+ 61:             'najran' => 'Najran',
+ 62:             'الباحة' => 'Al Baha',
+ 63:             'باحة' => 'Al Baha',
+ 64:             'baha' => 'Al Baha',
+ 65:             'جيزان' => 'Jizan',
+ 66:             'جازان' => 'Jizan',
+ 67:             'jizan' => 'Jizan',
+ 68:             'jazan' => 'Jizan',
+ 69:             'الجوف' => 'Al Jouf',
+ 70:             'جوف' => 'Al Jouf',
+ 71:             'jouf' => 'Al Jouf',
+ 72:             'الطائف' => 'Taif',
+ 73:             'طائف' => 'Taif',
+ 74:             'taif' => 'Taif',
+ 75:             'ينبع' => 'Yanbu',
+ 76:             'yanbu' => 'Yanbu',
+ 77:             'أبها' => 'Abha',
+ 78:             'ابها' => 'Abha',
+ 79:             'abha' => 'Abha',
+ 80:             'عرعر' => 'Arar',
+ 81:             'arar' => 'Arar',
+ 82:             'الهفوف' => 'Hofuf',
+ 83:             'hofuf' => 'Hofuf',
+ 84:             'الأحساء' => 'Al Ahsa',
+ 85:             'احساء' => 'Al Ahsa',
+ 86:             'ahsa' => 'Al Ahsa',
+ 87:         ];
+ 88: 
+ 89:         $lower = mb_strtolower($city, 'UTF-8');
+ 90:         if (isset($mapping[$lower])) {
+ 91:             return $mapping[$lower];
+ 92:         }
+ 93: 
+ 94:         foreach ($mapping as $needle => $targetCity) {
+ 95:             if (mb_stripos($city, $needle, 0, 'UTF-8') !== false) {
+ 96:                 return $targetCity;
+ 97:             }
+ 98:         }
+ 99: 
+100:         return 'Riyadh';
+101:     }
+102: 
+103:     public function getRefreshToken(): string
+104:     {
+105:         $token = config('services.oto.refresh_token');
+106:         if (empty($token)) {
+107:             $token = env('OTO_REFRESH_TOKEN', 'AMf-vBwsG7J61J_1EkBNW_wnKdQc4Xyalpz59J1QittknHfsekYzdv-1sDxoeD1oaw5_OBxmnVtjkwzm7nAUsfkEZoZpmMQtAINMhJLIWxAiJ1xnX9IY4ksBrIGoiGFG1ULhV8nT-a7ucNxD28bjK-cf6bOPEVWYpVDdQToxKpvgEXp2yQTujA3HT5XMIo_x31f1k6I41WA3pdKzsrwSCU_NQSijp1oBxQ');
+108:         }
+109:         return $token ?? '';
+110:     }
+111: 
+112:     public function getAccessTokenOTO()
+113:     {
+114:         $cachedToken = cache()->get('oto_access_token');
+115:         if (!empty($cachedToken)) {
+116:             return $cachedToken;
+117:         }
+118: 
+119:         try {
+120:             $response = Http::timeout(10)->post(
+121:                 $this->getBaseUrl() . '/refreshToken',
+122:                 [
+123:                     'refresh_token' => $this->getRefreshToken(),
+124:                 ]
+125:             );
+126: 
+127:             if ($response->ok()) {
+128:                 $data = $response->json();
+129:                 $token = $data['access_token'] ?? '';
+130:                 if (!empty($token)) {
+131:                     cache()->put('oto_access_token', $token, now()->addHours(2));
+132:                 }
+133:                 return $token;
+134:             }
+135: 
+136:             Log::error('OTO Refresh Token Failed: ' . $response->status() . ' - ' . $response->body());
+137:             return '';
+138:         } catch (\Exception $e) {
+139:             Log::error('OTO Refresh Token Exception: ' . $e->getMessage());
+140:             return '';
+141:         }
+142:     }
+143: 
+144:     public function checkDeliveryFeeAndGetCheapest($accessToken, $originCity, $destinationCity, $width, $length, $height, $weight)
+145:     {
+146:         $w = (float) ($width ?: 10);
+147:         $l = (float) ($length ?: 10);
+148:         $h = (float) ($height ?: 10);
+149:         $wt = (float) ($weight ?: 1);
+150: 
+151:         $dataBody = [
+152:             'originCity' => self::sanitizeCity($originCity),
+153:             'destinationCity' => self::sanitizeCity($destinationCity),
+154:             'boxes' => [
+155:                 [
+156:                     'boxName' => 'Box1',
+157:                     'width' => $w,
+158:                     'length' => $l,
+159:                     'height' => $h,
+160:                     'weight' => $wt,
+161:                 ]
+162:             ],
+163:             'width' => $w,
+164:             'length' => $l,
+165:             'height' => $h,
+166:             'weight' => $wt,
+167:             'isCod' => true,
+168:         ];
+169: 
+170:         try {
+171:             $response = Http::timeout(15)->withHeaders([
+172:                 'Authorization' => 'Bearer ' . $accessToken,
+173:                 'Accept' => 'application/json',
+174:             ])
+175:                 ->post($this->getBaseUrl() . '/checkOTODeliveryFee', $dataBody);
+176: 
+177:             if ($response->ok()) {
+178:                 $result = $response->json();
+179:                 if (isset($result['success']) && $result['success'] == false) {
+180:                     Log::warning('OTO checkDeliveryFee Warning: ', $result);
+181:                     return null;
+182:                 }
+183: 
+184:                 $companies = $result['deliveryCompany'] ?? [];
+185:                 if (empty($companies)) {
+186:                     return null;
+187:                 }
+188: 
+189:                 $cheapest = collect($companies)->sortBy('price')->first();
+190:                 return $cheapest;
+191:             }
+192: 
+193:             Log::error('OTO checkDeliveryFee Error: ' . $response->status() . ' - ' . $response->body());
+194:             return null;
+195:         } catch (\Exception $e) {
+196:             Log::error('OTO checkDeliveryFee Exception: ' . $e->getMessage());
+197:             return null;
+198:         }
+199:     }
+200: 
+201:     public function createOrder($orderData, $token)
+202:     {
+203:         try {
+204:             $response = Http::timeout(15)->withToken($token)
+205:                 ->post($this->getBaseUrl() . '/createOrder', $orderData)
+206:                 ->json();
+207: 
+208:             return $response;
+209:         } catch (\Exception $e) {
+210:             Log::error('OTO createOrder Exception: ' . $e->getMessage());
+211:             return null;
+212:         }
+213:     }
+214: }
+```
+
+## File: app/Http/Controllers/API/V1/Shared/Conversations/MessageConversationController.php
+```php
+  1: <?php
+  2: 
+  3: namespace App\Http\Controllers\API\V1\Shared\Conversations;
+  4: 
+  5: use App\Http\Controllers\Controller;
+  6: use App\Http\Services\Shared\ShippingService;
+  7: use App\Models\Conversation;
+  8: use App\Models\MessageConversation;
+  9: use App\Traits\NotificationsTrait;
+ 10: use App\Utils\UploadUtils;
+ 11: use Illuminate\Http\Request;
+ 12: use Illuminate\Support\Facades\Log;
+ 13: use Illuminate\Support\Facades\Validator;
+ 14: 
+ 15: class MessageConversationController extends Controller
+ 16: {
+ 17:     use NotificationsTrait;
+ 18: 
+ 19:     public function __construct(protected ShippingService $shippingService) {}
+ 20: 
+ 21:     public function index(Request $request, $conversationId)
+ 22:     {
+ 23:         $lastId = $request->query('last_message_id', 0);
+ 24: 
+ 25:         $messages = MessageConversation::where('conversation_id', $conversationId)
+ 26:             ->where('id', '>', $lastId)
+ 27:             ->select(
+ 28:                 'id',
+ 29:                 'sender_id',
+ 30:                 'body',
+ 31:                 'image',
+ 32:                 'is_shipping_request',
+ 33:                 'created_at as date_sent',
+ 34:             )
+ 35:             ->orderBy('id', 'asc')
+ 36:             ->get();
+ 37: 
+ 38:         return buildApiResponseHelper(true, 'تم ارسال الرسالة بنجاح', $messages);
+ 39:     }
+ 40: 
+ 41:     public function store(Request $request)
+ 42:     {
+ 43:         $validator = Validator::make($request->all(), [
+ 44:             'conversationId' => 'required|exists:conversations,id',
+ 45:             'requestId' => 'required|integer',
+ 46:             'responseId' => 'required|integer',
+ 47:             'body' => 'nullable|string',
+ 48:             'isSendShippingRequest' => 'nullable|boolean',
+ 49:             'shippingInfo' => 'nullable',
+ 50:             'image' => 'nullable|image|mimes:png,jpg,jpeg,gif,webp|max:10000',
+ 51:         ]);
+ 52: 
+ 53:         if ($validator->fails()) {
+ 54:             return response()->json($validator->errors(), 422);
+ 55:         }
+ 56: 
+ 57:         $userId = getCurrUserIdHelper();
+ 58:         $receiverId = Conversation::getReceiverId($request->conversationId, $userId);
+ 59: 
+ 60:         $fileName = UploadUtils::uploadImageToStorage($request->image);
+ 61: 
+ 62:         $created = MessageConversation::create([
+ 63:             'conversation_id' => $request->conversationId,
+ 64:             'sender_id' => $userId,
+ 65:             'body' => $request->body,
+ 66:             'is_shipping_request' => $request->isSendShippingRequest,
+ 67:             'image' => $fileName
+ 68:         ]);
+ 69: 
+ 70: 
+ 71:         if ($created) {
+ 72:             $messagesNotify =  'رسالة جديدة من الطلب رقم' . ' ( ' . $request->requestId . ' )';
+ 73:             if ($request->shippingInfo != null && $request->isSendShippingRequest == true && $request->shippingInfo != '') {
+ 74:                 $shippingInfo = json_decode($request->shippingInfo, true);
+ 75:                 $this->shippingService->storeShippingRequest(
+ 76:                     requestId: $request->requestId,
+ 77:                     responseId: $request->responseId,
+ 78:                     orderNumber: 'REQ-' . $request->requestId . '-RES-' . $request->responseId . '-MSG-' . $created->id,
+ 79:                     nameOriginVendor: $shippingInfo['name'] ?? null,
+ 80:                     cityOriginVendor: !empty($shippingInfo['city']) ? $shippingInfo['city'] : 'الرياض',
+ 81:                     addressOriginVendor: $shippingInfo['address'],
+ 82:                     latOriginVendor: isset($shippingInfo['lat']) ? (float) $shippingInfo['lat'] : null,
+ 83:                     lngOriginVendor: isset($shippingInfo['lng']) ? (float) $shippingInfo['lng'] : null,
+ 84:                     phoneOriginVendor: $shippingInfo['phone'],
+ 85:                     length: $shippingInfo['length'],
+ 86:                     width: $shippingInfo['width'],
+ 87:                     height: $shippingInfo['height'] ?? null,
+ 88:                     weight: $shippingInfo['weight'] ?? null,
+ 89:                     packages: isset($shippingInfo['packages']) ? json_encode($shippingInfo['packages']) : null
+ 90:                 );
+ 91:                 $messagesNotify =  'طلب شحن جديد من الطلب رقم' . ' ( ' . $request->requestId . ' )';
+ 92:             }
+ 93: 
+ 94:             $this->notifyByID(
+ 95:                 userId: $receiverId,
+ 96:                 title: $messagesNotify,
+ 97:                 body: $request->body,
+ 98:                 notifyDB: false,
+ 99:                 category: 'conversations',
+100:                 extraData: [
+101:                     'conversation_id' => (string) $request->conversationId,
+102:                     'message_id' => (string) $created->id,
+103:                     'sender_id' => (string) $userId,
+104:                     'body' => (string) ($request->body ?? ''),
+105:                     'image' => (string) ($fileName ?? ''),
+106:                     'is_shipping_request' => $request->isSendShippingRequest ? '1' : '0',
+107:                 ]
+108:             );
+109: 
+110:             // Broadcast real-time message via Reverb WebSocket
+111:             try {
+112:                 broadcast(new \App\Events\NewMessage($request->conversationId, $created))->toOthers();
+113:             } catch (\Throwable $e) {
+114:                 Log::warning('Failed to broadcast NewMessage: ' . $e->getMessage());
+115:             }
+116:         }
+117: 
+118:         return buildApiResponseHelper(true, 'تم ارسال الرسالة بنجاح');
+119:     }
+120: }
 ```
 
 ## File: app/Http/Repositories/User/MyRequests/MyRequestUserRepository.php
@@ -18064,242 +18621,170 @@ vite.config.js
 190: }
 ```
 
-## File: app/Http/Controllers/API/NotificationBadgeController.php
+## File: app/Http/Controllers/API/V1/User/Requests/RequestController.php
 ```php
   1: <?php
   2: 
-  3: namespace App\Http\Controllers\API;
+  3: namespace App\Http\Controllers\API\V1\User\Requests;
   4: 
-  5: use App\Http\Controllers\Controller;
-  6: use App\Models\Conversation;
-  7: use App\Models\MessageConversation;
-  8: use App\Models\Vendor;
-  9: use Illuminate\Http\Request;
- 10: use Illuminate\Support\Facades\DB;
- 11: use Illuminate\Support\Facades\Log;
- 12: 
- 13: class NotificationBadgeController extends Controller
- 14: {
- 15:     /**
- 16:      * Get unread notification counts grouped by section and per-entity.
- 17:      */
- 18:     public function unreadCounts(Request $request)
- 19:     {
- 20:         try {
- 21:             $user = $request->user();
- 22:             if (!$user) {
- 23:                 return response()->json([
- 24:                     'success' => false,
- 25:                     'message' => 'Unauthenticated'
- 26:                 ], 401);
- 27:             }
- 28: 
- 29:             $userId = $user->id;
- 30:             $isVendor = Vendor::where('user_id', $userId)->exists();
- 31: 
- 32:             // Fetch unread notifications collection safely
- 33:             $unreadNotifications = $user->unreadNotifications()->get();
+  5: use App\Exceptions\CustomResponseException;
+  6: use App\Http\Controllers\Controller;
+  7: use App\Http\Requests\User\Request\{CheckEligibleVendorsRequest, ConfirmOrderRequest, ConfirmPriceShippingRequest, ConfirmShippingRequest};
+  8: use App\Http\Services\User\Requests\RequestService;
+  9: use App\Models\ShippingRequest;
+ 10: use App\Models\Vendor;
+ 11: use App\Traits\NotificationsTrait;
+ 12: use App\Utils\ConfigUtils;
+ 13: use App\Utils\OTOServiceUtils;
+ 14: use Exception;
+ 15: use Illuminate\Http\Request;
+ 16: use Illuminate\Support\Facades\DB;
+ 17: use Illuminate\Support\Facades\Log;
+ 18: use Illuminate\Support\Facades\Http;
+ 19: 
+ 20: class RequestController extends Controller
+ 21: {
+ 22:     use NotificationsTrait;
+ 23: 
+ 24:     public function __construct(protected RequestService $requestService, protected OTOServiceUtils $otoServiceUtils) {}
+ 25: 
+ 26:     public function checkEligibleVendors(CheckEligibleVendorsRequest $request)
+ 27:     {
+ 28:         $count = $this->requestService->countFilterEligibleVendors($request);
+ 29: 
+ 30:         return ($count == 0)
+ 31:             ? buildApiResponseHelper(false, 'لم يتم العثور على شركات مؤهلة تلبي شروط ')
+ 32:             : buildApiResponseHelper(true, 'تم العثور على ( ' . $count . ' ) شركة مؤهلة تلبي شروط طلبك');
+ 33:     }
  34: 
- 35:             // 1. Unread Customer Requests (For Vendors)
- 36:             $customerRequestsCount = 0;
- 37:             $customerRequestsEntityCounts = [];
- 38: 
- 39:             // 2. Unread Company Responses (For Customers)
- 40:             $companyResponsesCount = 0;
- 41:             $companyResponsesEntityCounts = [];
- 42: 
- 43:             foreach ($unreadNotifications as $item) {
- 44:                 $data = is_array($item->data) ? $item->data : (json_decode($item->data, true) ?? []);
- 45:                 $category = (string)($data['category'] ?? '');
- 46:                 $title = (string)($data['title'] ?? '');
- 47:                 $body = (string)($data['body'] ?? '');
- 48:                 $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
- 49: 
- 50:                 if ($category === 'company_responses' || str_contains($title, 'رد') || str_contains($body, 'الرد')) {
- 51:                     $companyResponsesCount++;
- 52:                     if ($targetId !== '') {
- 53:                         $companyResponsesEntityCounts[$targetId] = ($companyResponsesEntityCounts[$targetId] ?? 0) + 1;
- 54:                     }
- 55:                 } elseif ($category === 'customer_requests' || str_contains($title, 'طلب جديد') || str_contains($body, 'طلب جديد')) {
- 56:                     $customerRequestsCount++;
- 57:                     if ($targetId !== '') {
- 58:                         $customerRequestsEntityCounts[$targetId] = ($customerRequestsEntityCounts[$targetId] ?? 0) + 1;
- 59:                     }
- 60:                 }
- 61:             }
- 62: 
- 63:             // Sync section count strictly with specific unread entity counts if present
- 64:             if (!empty($customerRequestsEntityCounts)) {
- 65:                 $customerRequestsCount = array_sum($customerRequestsEntityCounts);
- 66:             }
- 67:             if (!empty($companyResponsesEntityCounts)) {
- 68:                 $companyResponsesCount = array_sum($companyResponsesEntityCounts);
- 69:             }
- 70: 
- 71:             // 3. Unread Conversations (For both Users & Vendors)
- 72:             $userConversationIds = Conversation::where('user_id', $userId)
- 73:                 ->orWhere('vendor_id', $userId)
- 74:                 ->pluck('id');
- 75: 
- 76:             $conversationsCount = 0;
- 77:             $conversationEntityCounts = [];
- 78:             $requestConversationsEntityCounts = [];
- 79: 
- 80:             if ($userConversationIds->isNotEmpty()) {
- 81:                 $rawCounts = MessageConversation::join('conversations', 'message_conversations.conversation_id', '=', 'conversations.id')
- 82:                     ->whereIn('message_conversations.conversation_id', $userConversationIds)
- 83:                     ->where('message_conversations.sender_id', '!=', $userId)
- 84:                     ->where(function ($q) {
- 85:                         $q->where('message_conversations.read', 0)->orWhere('message_conversations.read', false)->orWhereNull('message_conversations.read');
- 86:                     })
- 87:                     ->select('message_conversations.conversation_id', 'conversations.request_id', DB::raw('count(*) as count'))
- 88:                     ->groupBy('message_conversations.conversation_id', 'conversations.request_id')
- 89:                     ->get();
- 90: 
- 91:                 foreach ($rawCounts as $row) {
- 92:                     $conversationEntityCounts[(string)$row->conversation_id] = (int)$row->count;
- 93:                     if ($row->request_id) {
- 94:                         $requestConversationsEntityCounts[(string)$row->request_id] = ($requestConversationsEntityCounts[(string)$row->request_id] ?? 0) + (int)$row->count;
- 95:                     }
- 96:                     $conversationsCount += (int)$row->count;
- 97:                 }
- 98:             }
- 99: 
-100:             return response()->json([
-101:                 'success' => true,
-102:                 'data' => [
-103:                     'customer_requests' => (int)$customerRequestsCount,
-104:                     'company_responses' => (int)$companyResponsesCount,
-105:                     'conversations' => (int)$conversationsCount,
-106:                     'sections' => [
-107:                         'customer_requests' => (int)$customerRequestsCount,
-108:                         'company_responses' => (int)$companyResponsesCount,
-109:                         'conversations' => (int)$conversationsCount,
-110:                     ],
-111:                     'entities' => [
-112:                         'conversations' => $conversationEntityCounts,
-113:                         'request_conversations' => $requestConversationsEntityCounts,
-114:                         'customer_requests' => $customerRequestsEntityCounts,
-115:                         'company_responses' => $companyResponsesEntityCounts,
-116:                     ]
-117:                 ]
-118:             ]);
-119:         } catch (\Throwable $e) {
-120:             Log::error("[NotificationBadgeController] unreadCounts ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
-121:             return response()->json([
-122:                 'success' => false,
-123:                 'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
-124:             ], 500);
-125:         }
-126:     }
-127: 
-128:     /**
-129:      * Mark a specific entity (e.g. conversation_id or request_id) as read.
-130:      */
-131:     public function markEntityRead(Request $request)
-132:     {
-133:         try {
-134:             $user = $request->user();
-135:             if (!$user) {
-136:                 return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
-137:             }
-138: 
-139:             $section = $request->input('section');
-140:             $entityId = $request->input('entity_id');
-141:             $userId = $user->id;
-142: 
-143:             if ($section === 'conversations' && $entityId) {
-144:                 MessageConversation::where('conversation_id', $entityId)
-145:                     ->where('sender_id', '!=', $userId)
-146:                     ->update(['read' => 1]);
-147:             } elseif ($section === 'customer_requests' || $section === 'company_responses') {
-148:                 if ($entityId) {
-149:                     $notifications = DB::table('notifications')
-150:                         ->where('notifiable_type', get_class($user))
-151:                         ->where('notifiable_id', $userId)
-152:                         ->whereNull('read_at')
-153:                         ->get();
+ 35:     public function confirmRequest(ConfirmOrderRequest $request)
+ 36:     {
+ 37:         DB::beginTransaction();
+ 38:         try {
+ 39:             $eligibleVendors = $this->requestService->confirmRequest($request);
+ 40: 
+ 41:             DB::commit();
+ 42:             $this->notifyRequestToEligibleVendors($eligibleVendors);
+ 43: 
+ 44:             return buildApiResponseHelper(true, 'تم إرسال الطلب بنجاح ... سيتم الرد عليك من خلال الشركات المؤهلة لاحقاً');
+ 45:         } catch (Exception $e) {
+ 46:             DB::rollBack();
+ 47:             report($e);
+ 48:             throw new CustomResponseException("حدث خطاء أثنا تأكيد الطلب ... الرجاء المحاولة مرة أخرى");
+ 49:         }
+ 50:     }
+ 51: 
+ 52:     public function ConfirmShippingRequest(ConfirmShippingRequest $request)
+ 53:     {
+ 54:         set_time_limit(60);
+ 55:         try {
+ 56:             $shippingRequest = ShippingRequest::where('request_id', $request->requestId)->where('response_id', $request->responseId)->latest()->first();
+ 57: 
+ 58:             if (!$shippingRequest) {
+ 59:                 return buildApiResponseHelper(false, 'لا يوجد شحنة لهذا الطلب');
+ 60:             }
+ 61: 
+ 62:             $originCity = OTOServiceUtils::sanitizeCity($shippingRequest->city_origin_vendor);
+ 63:             $destinationCity = OTOServiceUtils::sanitizeCity($request->cityOriginDimensions);
+ 64: 
+ 65:             $w = (float) ($shippingRequest->width ?: 10);
+ 66:             $l = (float) ($shippingRequest->length ?: 10);
+ 67:             $h = (float) ($shippingRequest->height ?: 10);
+ 68:             $wt = (float) ($shippingRequest->weight ?: 1);
+ 69: 
+ 70:             $dataBody = [
+ 71:                 'originCity' => $originCity,
+ 72:                 'destinationCity' => $destinationCity,
+ 73:                 'boxes' => [
+ 74:                     [
+ 75:                         'boxName' => 'Box1',
+ 76:                         'width' => $w,
+ 77:                         'length' => $l,
+ 78:                         'height' => $h,
+ 79:                         'weight' => $wt,
+ 80:                     ]
+ 81:                 ],
+ 82:                 'width' => $w,
+ 83:                 'length' => $l,
+ 84:                 'height' => $h,
+ 85:                 'weight' => $wt,
+ 86:                 'isCod' => true
+ 87:             ];
+ 88: 
+ 89:             $token = $this->otoServiceUtils->getAccessTokenOTO();
+ 90:             if (empty($token)) {
+ 91:                 Log::error('OTO Access Token is empty in ConfirmShippingRequest');
+ 92:                 return buildApiResponseHelper(false, 'تعذر الاتصال بشركة الشحن في الوقت الحالي ... الرجاء المحاولة لاحقاً');
+ 93:             }
+ 94: 
+ 95:             $otoUrl = $this->otoServiceUtils->getBaseUrl();
+ 96:             $response = Http::timeout(15)->withHeaders([
+ 97:                 'Authorization' => 'Bearer ' . $token,
+ 98:                 'Accept' => 'application/json',
+ 99:             ])
+100:                 ->post($otoUrl . '/checkOTODeliveryFee', $dataBody);
+101: 
+102:             if ($response->status() === 401) {
+103:                 cache()->forget('oto_access_token');
+104:                 $token = $this->otoServiceUtils->getAccessTokenOTO();
+105:                 $response = Http::timeout(15)->withHeaders([
+106:                     'Authorization' => 'Bearer ' . $token,
+107:                     'Accept' => 'application/json',
+108:                 ])->post($otoUrl . '/checkOTODeliveryFee', $dataBody);
+109:             }
+110: 
+111:             if ($response->ok()) {
+112:                 $result = $response->json();
+113:                 if (isset($result['success']) && $result['success'] == false) {
+114:                     Log::warning('OTO Delivery Fee Warning: ', $result);
+115:                     return buildApiResponseHelper(false, 'لا توجد شركات شحن متاحة لهذا المسار حالياً');
+116:                 }
+117: 
+118:                 $companies = $result['deliveryCompany'] ?? [];
+119:                 if (empty($companies)) {
+120:                     return buildApiResponseHelper(false, 'لا تتوفر شركات شحن متاحة حالياً');
+121:                 }
+122: 
+123:                 $cheapest = collect($companies)->sortBy('price')->first();
+124:                 $cheapestPrice = $cheapest['price'] ?? 0;
+125:                 $shippingRequest->update([
+126:                     'id_number_user' => $request->idNumberUser,
+127:                     'city_origin_dimensions' => $destinationCity,
+128:                     'address_origin_dimensions' => $request->addressOriginDimensions,
+129:                     'phone_origin_dimensions' => $request->phoneOriginDimensions,
+130:                     'fee_cheapest_shipping' => $cheapestPrice,
+131:                     'amount_rate_app' => ConfigUtils::getAmountRateAppForCharge(),
+132:                 ]);
+133: 
+134:                 return buildApiResponseHelper(true, 'السعر التقريبي للشحنة' . ' ' . ($cheapestPrice + ConfigUtils::getAmountRateAppForCharge()) . ' ريال' . ' - إضغط موافق لتاكيد الشحنة',  ['shippingRequestId' => $shippingRequest->id]);
+135:             }
+136: 
+137:             Log::error('OTO Delivery Fee Error: ' . $response->status() . ' - ' . $response->body(), ['payload' => $dataBody]);
+138:             return buildApiResponseHelper(false, 'تعذر جلب أسعار الشحن من شركة الشحن ... الرجاء المحاولة لاحقاً');
+139:         } catch (Exception $e) {
+140:             Log::error('ConfirmShippingRequest Exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+141:             report($e);
+142:             return buildApiResponseHelper(false, 'حدث خطأ في تأكيد الشحنة ... الرجاء المحاولة مرة أخرى');
+143:         }
+144:     }
+145: 
+146:     public function confirmPriceShippingRequest(ConfirmPriceShippingRequest $request)
+147:     {
+148:         $updated = ShippingRequest::where('id', $request->id)->update([
+149:             'is_user_confirmed' => true
+150:         ]);
+151: 
+152:         if (!$updated)
+153:             return buildApiResponseHelper(false, 'حدث خطاء في تاكيد الشحنة ... الرجاء المحاولة مرة اخرى');
 154: 
-155:                     $foundSpecific = false;
-156:                     foreach ($notifications as $notif) {
-157:                         $data = json_decode($notif->data, true) ?? [];
-158:                         $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
-159:                         if ($targetId === (string)$entityId) {
-160:                             DB::table('notifications')
-161:                                 ->where('id', $notif->id)
-162:                                 ->update(['read_at' => now()]);
-163:                             $foundSpecific = true;
-164:                         }
-165:                     }
-166: 
-167:                     if (!$foundSpecific && $notifications->isNotEmpty()) {
-168:                         DB::table('notifications')
-169:                             ->where('id', $notifications->first()->id)
-170:                             ->update(['read_at' => now()]);
-171:                     }
-172:                 } else {
-173:                     DB::table('notifications')
-174:                         ->where('notifiable_type', get_class($user))
-175:                         ->where('notifiable_id', $userId)
-176:                         ->whereNull('read_at')
-177:                         ->update(['read_at' => now()]);
-178:                 }
-179:             }
-180: 
-181:             return $this->unreadCounts($request);
-182:         } catch (\Throwable $e) {
-183:             Log::error("[NotificationBadgeController] markEntityRead ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
-184:             return response()->json([
-185:                 'success' => false,
-186:                 'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
-187:             ], 500);
-188:         }
-189:     }
-190: 
-191:     /**
-192:      * Mark notifications for a specific category/section as read.
-193:      */
-194:     public function markCategoryRead(Request $request)
-195:     {
-196:         try {
-197:             $user = $request->user();
-198:             if (!$user) {
-199:                 return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
-200:             }
-201: 
-202:             $category = $request->input('category');
-203:             $userId = $user->id;
-204: 
-205:             // Direct DB update for notifications
-206:             DB::table('notifications')
-207:                 ->where('notifiable_type', get_class($user))
-208:                 ->where('notifiable_id', $userId)
-209:                 ->whereNull('read_at')
-210:                 ->update(['read_at' => now()]);
-211: 
-212:             // Direct DB update for conversations messages
-213:             if ($category === 'conversations') {
-214:                 $userConversationIds = Conversation::where('user_id', $userId)
-215:                     ->orWhere('vendor_id', $userId)
-216:                     ->pluck('id');
-217: 
-218:                 if ($userConversationIds->isNotEmpty()) {
-219:                     MessageConversation::whereIn('conversation_id', $userConversationIds)
-220:                         ->where('sender_id', '!=', $userId)
-221:                         ->update(['read' => 1]);
-222:                 }
-223:             }
-224: 
-225:             return $this->unreadCounts($request);
-226:         } catch (\Throwable $e) {
-227:             Log::error("[NotificationBadgeController] markCategoryRead ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
-228:             return response()->json([
-229:                 'success' => false,
-230:                 'message' => 'حدث خطأ غير متوقع. الرجاء المحاولة لاحقاً.'
-231:             ], 500);
-232:         }
-233:     }
-234: }
+155:         $this->notifyToAdmin('طلب شحنة جديد', 'هناك طلب شحنة جديد ... طلب شحنة جديد');
+156: 
+157:         // Dispatch Email Notification to Admin Emails
+158:         \App\Jobs\SendNewShippingRequestNotificationJob::dispatch($request->id);
+159: 
+160:         return buildApiResponseHelper(true, 'تم تاكيد الشحنة بنجاح');
+161:     }
+162: }
 ```
 
 ## File: routes/api.php
@@ -18312,80 +18797,81 @@ vite.config.js
  6: use Illuminate\Support\Facades\Route;
  7: 
  8: Broadcast::routes(['middleware' => ['auth:sanctum']]);
- 9: 
-10: Route::prefix('v1/user')->group(base_path('routes/api_user_v1.php'));
-11: Route::prefix('v1/vendor')->group(base_path('routes/api_vendor_v1.php'));
-12: 
-13: Route::get('/user', function (Request $request) {
-14:     return $request->user();
-15: })->middleware('auth:sanctum');
-16: 
-17: Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
-18:     Route::prefix('/chat/messages')->controller(App\Http\Controllers\API\V1\Shared\Conversations\MessageConversationController::class)->group(function () {
-19:         Route::get('/{conversationId}', 'index');
-20:         Route::post('/send', 'store');
-21:     });
-22:     Route::prefix('/chat/conversations')->controller(App\Http\Controllers\API\V1\Shared\Conversations\ConversationController::class)->group(function () {
-23:         Route::post('/create-conversation', 'store');
-24:         Route::get('/user-conversations', 'getUserConversations');
-25:         Route::get('/vendor-conversations', 'getVendorConversations');
-26:     });
-27: 
-28:     Route::prefix('/notifications')->group(function () {
-29:         Route::get('/unread-counts', [App\Http\Controllers\API\NotificationBadgeController::class, 'unreadCounts']);
-30:         Route::post('/mark-category-read', [App\Http\Controllers\API\NotificationBadgeController::class, 'markCategoryRead']);
-31:         Route::post('/mark-entity-read', [App\Http\Controllers\API\NotificationBadgeController::class, 'markEntityRead']);
-32:         Route::get('/', [App\Http\Controllers\API\V1\Shared\NotificationController::class, 'index']);
-33:     });
-34: });
-35: 
-36: Route::get('/uploads/{filename}', [App\Http\Controllers\FileController::class, 'getImage']);
-37: 
-38: Route::middleware('auth:sanctum')->controller(App\Http\Controllers\FileController::class)->group(function () {
-39:     Route::get('/uploads-private/{filename}', 'getSensitiveImage');
-40: });
-41: 
-42: Route::prefix('v1/auth')->controller(App\Http\Controllers\API\V1\Shared\Auth\AuthController::class)->group(function () {
-43:     Route::post('/register', 'register');
-44:     Route::post('/login-with-otp', 'loginWithOtp');
-45:     Route::post('/logout', 'logout')->middleware('auth:sanctum');
-46: });
-47: 
-48: Route::middleware('auth:sanctum')->controller(App\Http\Controllers\FileController::class)->group(function () {
-49:     Route::get('/{filename}', 'getSensitiveImage');
-50: });
-51: 
-52: Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
-53:     Route::get('/cities', [App\Http\Controllers\API\V1\Shared\CityController::class, 'getCities']); 
-54: });
-55: 
-56: Route::prefix('v1')->group(function () {
-57:     Route::post('/cache/check-updates', [CacheStaticDataVersionController::class, 'checkUpdates']);
-58:     
-59:     Route::get('/test-db', function () {
-60:         $vendor = \App\Models\RequestResponse::joinRequestCustomer()
-61:             ->leftJoinVendor()
-62:             ->leftJoinVendorToUser()
-63:             ->select('request_responses.id as response_id', 'users.logo as vendor_logo', 'vendors.id as v_id', 'vendors.user_id as vu_id')
-64:             ->first();
-65:         return response()->json($vendor);
-66:     });
-67:     
-68:     Route::get('/update-cat', function () {
-69:         \App\Models\Category::where('id', 2)->update([
-70:             'cat_name_ar' => 'قطع غيار تشليح',
-71:             'cat_name_en' => 'Scrap Spare Parts'
-72:         ]);
-73:         
-74:         \App\Models\CacheStaticDataVersion::where('entity_name', 'categories')->update(['last_updated_at' => now()]);
-75:         \App\Models\CacheStaticDataVersion::where('entity_name', 'category_has_brand_field')->update(['last_updated_at' => now()]);
-76:         
-77:         \Illuminate\Support\Facades\Artisan::call('cache:clear');
-78:         
-79:         return response()->json(['success' => true]);
-80:     });
-81: });
-82: Route::get('/test-railway', function () { return 'Railway is deploying!'; });
+ 9: require base_path('routes/channels.php');
+10: 
+11: Route::prefix('v1/user')->group(base_path('routes/api_user_v1.php'));
+12: Route::prefix('v1/vendor')->group(base_path('routes/api_vendor_v1.php'));
+13: 
+14: Route::get('/user', function (Request $request) {
+15:     return $request->user();
+16: })->middleware('auth:sanctum');
+17: 
+18: Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
+19:     Route::prefix('/chat/messages')->controller(App\Http\Controllers\API\V1\Shared\Conversations\MessageConversationController::class)->group(function () {
+20:         Route::get('/{conversationId}', 'index');
+21:         Route::post('/send', 'store');
+22:     });
+23:     Route::prefix('/chat/conversations')->controller(App\Http\Controllers\API\V1\Shared\Conversations\ConversationController::class)->group(function () {
+24:         Route::post('/create-conversation', 'store');
+25:         Route::get('/user-conversations', 'getUserConversations');
+26:         Route::get('/vendor-conversations', 'getVendorConversations');
+27:     });
+28: 
+29:     Route::prefix('/notifications')->group(function () {
+30:         Route::get('/unread-counts', [App\Http\Controllers\API\NotificationBadgeController::class, 'unreadCounts']);
+31:         Route::post('/mark-category-read', [App\Http\Controllers\API\NotificationBadgeController::class, 'markCategoryRead']);
+32:         Route::post('/mark-entity-read', [App\Http\Controllers\API\NotificationBadgeController::class, 'markEntityRead']);
+33:         Route::get('/', [App\Http\Controllers\API\V1\Shared\NotificationController::class, 'index']);
+34:     });
+35: });
+36: 
+37: Route::get('/uploads/{filename}', [App\Http\Controllers\FileController::class, 'getImage']);
+38: 
+39: Route::middleware('auth:sanctum')->controller(App\Http\Controllers\FileController::class)->group(function () {
+40:     Route::get('/uploads-private/{filename}', 'getSensitiveImage');
+41: });
+42: 
+43: Route::prefix('v1/auth')->controller(App\Http\Controllers\API\V1\Shared\Auth\AuthController::class)->group(function () {
+44:     Route::post('/register', 'register');
+45:     Route::post('/login-with-otp', 'loginWithOtp');
+46:     Route::post('/logout', 'logout')->middleware('auth:sanctum');
+47: });
+48: 
+49: Route::middleware('auth:sanctum')->controller(App\Http\Controllers\FileController::class)->group(function () {
+50:     Route::get('/{filename}', 'getSensitiveImage');
+51: });
+52: 
+53: Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
+54:     Route::get('/cities', [App\Http\Controllers\API\V1\Shared\CityController::class, 'getCities']); 
+55: });
+56: 
+57: Route::prefix('v1')->group(function () {
+58:     Route::post('/cache/check-updates', [CacheStaticDataVersionController::class, 'checkUpdates']);
+59:     
+60:     Route::get('/test-db', function () {
+61:         $vendor = \App\Models\RequestResponse::joinRequestCustomer()
+62:             ->leftJoinVendor()
+63:             ->leftJoinVendorToUser()
+64:             ->select('request_responses.id as response_id', 'users.logo as vendor_logo', 'vendors.id as v_id', 'vendors.user_id as vu_id')
+65:             ->first();
+66:         return response()->json($vendor);
+67:     });
+68:     
+69:     Route::get('/update-cat', function () {
+70:         \App\Models\Category::where('id', 2)->update([
+71:             'cat_name_ar' => 'قطع غيار تشليح',
+72:             'cat_name_en' => 'Scrap Spare Parts'
+73:         ]);
+74:         
+75:         \App\Models\CacheStaticDataVersion::where('entity_name', 'categories')->update(['last_updated_at' => now()]);
+76:         \App\Models\CacheStaticDataVersion::where('entity_name', 'category_has_brand_field')->update(['last_updated_at' => now()]);
+77:         
+78:         \Illuminate\Support\Facades\Artisan::call('cache:clear');
+79:         
+80:         return response()->json(['success' => true]);
+81:     });
+82: });
+83: Route::get('/test-railway', function () { return 'Railway is deploying!'; });
 ```
 
 ## File: routes/web.php
@@ -18466,111 +18952,117 @@ vite.config.js
  74:         Route::post('/clear-logs', 'clearLogs')->name('dashboard.logs.clear-logs');
  75:         Route::get('/download-logs', 'downloadLogs')->name('dashboard.logs.download-logs');
  76:     });
- 77: });
- 78: 
- 79: Route::middleware('auth')->group(function () {
- 80:     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
- 81:     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
- 82:     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+ 77: 
+ 78:     Route::prefix('settings/notification-emails')->controller(App\Http\Controllers\Dashboard\Settings\NotificationEmailController::class)->group(function () {
+ 79:         Route::get('/', 'index')->name('dashboard.settings.notification-emails.index');
+ 80:         Route::post('/', 'store')->name('dashboard.settings.notification-emails.store');
+ 81:         Route::delete('/{id}', 'destroy')->name('dashboard.settings.notification-emails.destroy');
+ 82:     });
  83: });
  84: 
- 85: require __DIR__ . '/auth.php';
- 86: 
- 87: Route::get('/run-migration-now', function() {
- 88:     \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
- 89:     return 'Migrated!';
- 90: });
- 91: 
+ 85: Route::middleware('auth')->group(function () {
+ 86:     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+ 87:     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+ 88:     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+ 89: });
+ 90: 
+ 91: require __DIR__ . '/auth.php';
  92: 
- 93: Route::get('/fix-cache-now', function() {
- 94:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
- 95:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
- 96:     return 'Cache fixed!';
- 97: });
+ 93: Route::get('/run-migration-now', function() {
+ 94:     \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+ 95:     return 'Migrated!';
+ 96: });
+ 97: 
  98: 
- 99: 
-100: Route::get('/fix-icon-v2', function() {
-101:     \Illuminate\Support\Facades\DB::table('categories')
-102:         ->where('cat_name_ar', 'LIKE', '%?????%')
-103:         ->orWhere('cat_name_ar', 'LIKE', '%?????%')
-104:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v2.png']);
-105:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
-106:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
-107:     return 'Icon V2 fixed!';
-108: });
-109: 
-110: 
-111: Route::get('/fix-icon-v3', function() {
-112:     \Illuminate\Support\Facades\DB::table('categories')
-113:         ->where('id', 3)
-114:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v2.png']);
-115:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
-116:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
-117:     return 'Icon V3 fixed!';
-118: });
-119: 
-120: 
-121: Route::get('/debug-notifications', function() {
-122:     return \Illuminate\Support\Facades\DB::table('notifications')->orderBy('created_at', 'desc')->limit(5)->get();
-123: });
-124: 
+ 99: Route::get('/fix-cache-now', function() {
+100:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+101:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+102:     return 'Cache fixed!';
+103: });
+104: 
+105: 
+106: Route::get('/fix-icon-v2', function() {
+107:     \Illuminate\Support\Facades\DB::table('categories')
+108:         ->where('cat_name_ar', 'LIKE', '%?????%')
+109:         ->orWhere('cat_name_ar', 'LIKE', '%?????%')
+110:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v2.png']);
+111:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+112:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+113:     return 'Icon V2 fixed!';
+114: });
+115: 
+116: 
+117: Route::get('/fix-icon-v3', function() {
+118:     \Illuminate\Support\Facades\DB::table('categories')
+119:         ->where('id', 3)
+120:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v2.png']);
+121:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+122:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+123:     return 'Icon V3 fixed!';
+124: });
 125: 
-126: Route::get('/fix-icon-v4', function() {
-127:     \Illuminate\Support\Facades\DB::table('categories')
-128:         ->where('id', 1)
-129:         ->update(['icon' => 'new-spare-parts-icon-v4.png']);
-130:     \App\Models\Category::forgetCategoriesCached();
-131:     return 'Done v4';
-132: });
-133: 
-134: 
-135: Route::get('/fix-icon-v5', function() {
-136:     \Illuminate\Support\Facades\DB::table('categories')
-137:         ->where('id', 1)
-138:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v4.png']);
-139:     \Illuminate\Support\Facades\Artisan::call('cache:clear');
-140:     return 'Done v5';
-141: });
-142: 
-143: 
-144: Route::get('/fix-icon-v4', function() {
-145:     \Illuminate\Support\Facades\DB::table('categories')
-146:         ->where('id', 3)
-147:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v4.png']);
-148:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
-149:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
-150:     return 'Icon V4 fixed!';
-151: });
-152: 
-153: 
-154: Route::get('/fix-icons-v6', function() {
-155:     \Illuminate\Support\Facades\DB::table('categories')
-156:         ->where('id', 1)
-157:         ->update(['cat_icon_path' => 'new-cars-icon.png']);
-158:     \Illuminate\Support\Facades\DB::table('categories')
-159:         ->where('id', 3)
-160:         ->update(['cat_icon_path' => 'spare-parts-icon.png']);
-161:         
-162:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
-163:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
-164:     \Illuminate\Support\Facades\Artisan::call('cache:clear');
-165:     return 'Icons restored!';
-166: });
-167: 
-168: 
-169: Route::get('/fix-icon-v4', function() {
-170:     \Illuminate\Support\Facades\DB::table('categories')
-171:         ->where('id', 3)
-172:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v4.png']);
-173:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
-174:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
-175:     return 'Icon V4 fixed!';
-176: });
-177: 
-178: 
-179: Route::get('/logs', function() {
-180:     return file_exists(storage_path('logs/laravel.log')) ? file_get_contents(storage_path('logs/laravel.log')) : 'no logs';
-181: });
+126: 
+127: Route::get('/debug-notifications', function() {
+128:     return \Illuminate\Support\Facades\DB::table('notifications')->orderBy('created_at', 'desc')->limit(5)->get();
+129: });
+130: 
+131: 
+132: Route::get('/fix-icon-v4', function() {
+133:     \Illuminate\Support\Facades\DB::table('categories')
+134:         ->where('id', 1)
+135:         ->update(['icon' => 'new-spare-parts-icon-v4.png']);
+136:     \App\Models\Category::forgetCategoriesCached();
+137:     return 'Done v4';
+138: });
+139: 
+140: 
+141: Route::get('/fix-icon-v5', function() {
+142:     \Illuminate\Support\Facades\DB::table('categories')
+143:         ->where('id', 1)
+144:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v4.png']);
+145:     \Illuminate\Support\Facades\Artisan::call('cache:clear');
+146:     return 'Done v5';
+147: });
+148: 
+149: 
+150: Route::get('/fix-icon-v4', function() {
+151:     \Illuminate\Support\Facades\DB::table('categories')
+152:         ->where('id', 3)
+153:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v4.png']);
+154:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+155:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+156:     return 'Icon V4 fixed!';
+157: });
+158: 
+159: 
+160: Route::get('/fix-icons-v6', function() {
+161:     \Illuminate\Support\Facades\DB::table('categories')
+162:         ->where('id', 1)
+163:         ->update(['cat_icon_path' => 'new-cars-icon.png']);
+164:     \Illuminate\Support\Facades\DB::table('categories')
+165:         ->where('id', 3)
+166:         ->update(['cat_icon_path' => 'spare-parts-icon.png']);
+167:         
+168:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+169:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+170:     \Illuminate\Support\Facades\Artisan::call('cache:clear');
+171:     return 'Icons restored!';
+172: });
+173: 
+174: 
+175: Route::get('/fix-icon-v4', function() {
+176:     \Illuminate\Support\Facades\DB::table('categories')
+177:         ->where('id', 3)
+178:         ->update(['cat_icon_path' => 'new-spare-parts-icon-v4.png']);
+179:     \App\Models\CacheStaticDataVersion::updateTimestamp(\App\Enums\EntityNameCacheStaticDataEnum::Categories->value);
+180:     \App\Utils\CacheUtils::forget(\App\Utils\CacheUtils::categoriesCacheStaticDataAppKey());
+181:     return 'Icon V4 fixed!';
+182: });
+183: 
+184: 
+185: Route::get('/logs', function() {
+186:     return file_exists(storage_path('logs/laravel.log')) ? file_get_contents(storage_path('logs/laravel.log')) : 'no logs';
+187: });
 ```
 
 ## File: app/Http/Controllers/API/V1/Shared/Conversations/ConversationController.php
