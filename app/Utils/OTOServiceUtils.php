@@ -111,8 +111,13 @@ class OTOServiceUtils
 
     public function getAccessTokenOTO()
     {
+        $cachedToken = cache()->get('oto_access_token');
+        if (!empty($cachedToken)) {
+            return $cachedToken;
+        }
+
         try {
-            $response = Http::timeout(15)->post(
+            $response = Http::timeout(10)->post(
                 $this->getBaseUrl() . '/refreshToken',
                 [
                     'refresh_token' => $this->getRefreshToken(),
@@ -121,7 +126,11 @@ class OTOServiceUtils
 
             if ($response->ok()) {
                 $data = $response->json();
-                return $data['access_token'] ?? '';
+                $token = $data['access_token'] ?? '';
+                if (!empty($token)) {
+                    cache()->put('oto_access_token', $token, now()->addHours(2));
+                }
+                return $token;
             }
 
             Log::error('OTO Refresh Token Failed: ' . $response->status() . ' - ' . $response->body());

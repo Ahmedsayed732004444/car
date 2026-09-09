@@ -51,6 +51,7 @@ class RequestController extends Controller
 
     public function ConfirmShippingRequest(ConfirmShippingRequest $request)
     {
+        set_time_limit(60);
         try {
             $shippingRequest = ShippingRequest::where('request_id', $request->requestId)->where('response_id', $request->responseId)->latest()->first();
 
@@ -97,6 +98,15 @@ class RequestController extends Controller
                 'Accept' => 'application/json',
             ])
                 ->post($otoUrl . '/checkOTODeliveryFee', $dataBody);
+
+            if ($response->status() === 401) {
+                cache()->forget('oto_access_token');
+                $token = $this->otoServiceUtils->getAccessTokenOTO();
+                $response = Http::timeout(15)->withHeaders([
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept' => 'application/json',
+                ])->post($otoUrl . '/checkOTODeliveryFee', $dataBody);
+            }
 
             if ($response->ok()) {
                 $result = $response->json();
