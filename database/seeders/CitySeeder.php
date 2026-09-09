@@ -19,7 +19,7 @@ class CitySeeder extends Seeder
             ['ar' => 'جده', 'en' => 'Jeddah'],
             ['ar' => 'المدينة', 'en' => 'Madinah'],
             ['ar' => 'القصيم', 'en' => 'Qassim'],
-            ['ar' => 'الشرقية', 'en' => 'Eastern Province'],
+            ['ar' => 'الشرقية', 'en' => 'Dammam'],
             ['ar' => 'عسير', 'en' => 'Asir'],
             ['ar' => 'تبوك', 'en' => 'Tabuk'],
             ['ar' => 'حائل', 'en' => 'Hail'],
