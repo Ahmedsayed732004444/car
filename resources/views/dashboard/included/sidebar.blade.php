@@ -80,6 +80,13 @@
                     </a>
                 </li>
 
+                <li class="nav-item"> <a href="{{ route('dashboard.settings.notification-emails.index') }}"
+                        class="nav-link {{ request()->routeIs('dashboard.settings.notification-emails.*') ? 'active' : '' }}">
+                        <i class="nav-icon fa-solid fa-envelope"></i>
+                        <p>إيميلات الإشعارات</p>
+                    </a>
+                </li>
+
                 <li class="nav-item"> <a href="{{ route('dashboard.logs.index') }}"
                         class="nav-link {{ request()->routeIs('dashboard.logs.*') ? 'active' : '' }}">
                         <i class="nav-icon fa-solid fa-note-sticky"></i>

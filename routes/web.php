@@ -74,6 +74,12 @@ Route::prefix('/dashboard')->middleware(['auth:admin', 'role:Super-Admin|admin',
         Route::post('/clear-logs', 'clearLogs')->name('dashboard.logs.clear-logs');
         Route::get('/download-logs', 'downloadLogs')->name('dashboard.logs.download-logs');
     });
+
+    Route::prefix('settings/notification-emails')->controller(App\Http\Controllers\Dashboard\Settings\NotificationEmailController::class)->group(function () {
+        Route::get('/', 'index')->name('dashboard.settings.notification-emails.index');
+        Route::post('/', 'store')->name('dashboard.settings.notification-emails.store');
+        Route::delete('/{id}', 'destroy')->name('dashboard.settings.notification-emails.destroy');
+    });
 });
 
 Route::middleware('auth')->group(function () {
