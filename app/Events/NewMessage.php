@@ -27,7 +27,7 @@ class NewMessage implements ShouldBroadcast
 
     public function broadcastOn(): array
     {
-        return [new PrivateChannel("private-conversation.{$this->conversationId}")];
+        return [new PrivateChannel("conversation.{$this->conversationId}")];
     }
 
     public function broadcastAs()
@@ -40,7 +40,11 @@ class NewMessage implements ShouldBroadcast
         return [
             'id' => $this->message->id ?? null,
             'sender_id' => $this->message->sender_id ?? null,
-            'body' => $this->message->body ?? $this->message,
+            'body' => $this->message->body ?? null,
+            'image' => $this->message->image ?? null,
+            'is_shipping_request' => (bool) ($this->message->is_shipping_request ?? false),
+            'conversation_id' => (int) $this->conversationId,
+            'date_sent' => $this->message->created_at?->format('h:i a') ?? '',
             'created_at' => $this->message->created_at?->toDateTimeString(),
         ];
     }

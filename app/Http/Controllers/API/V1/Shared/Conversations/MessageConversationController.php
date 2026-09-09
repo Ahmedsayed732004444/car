@@ -106,6 +106,13 @@ class MessageConversationController extends Controller
                     'is_shipping_request' => $request->isSendShippingRequest ? '1' : '0',
                 ]
             );
+
+            // Broadcast real-time message via Reverb WebSocket
+            try {
+                broadcast(new \App\Events\NewMessage($request->conversationId, $created))->toOthers();
+            } catch (\Throwable $e) {
+                Log::warning('Failed to broadcast NewMessage: ' . $e->getMessage());
+            }
         }
 
         return buildApiResponseHelper(true, 'تم ارسال الرسالة بنجاح');
