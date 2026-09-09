@@ -13,17 +13,24 @@ class Conversation extends Model
         'response_id'
     ];
 
-    public function scopeGetReceiverId($query, $conversationId, $currentUserId)
+    public static function getReceiverId($conversationId, $currentUserId)
     {
-        $conversation = $query->where('id', $conversationId)->first(['id', 'vendor_id', 'user_id']);
+        $conversation = self::where('id', $conversationId)->first(['id', 'vendor_id', 'user_id']);
         if (!$conversation) return 0;
 
         $vendorUserId = Vendor::where('id', $conversation->vendor_id)->value('user_id') ?: $conversation->vendor_id;
 
-        if ($currentUserId == $vendorUserId || $currentUserId == $conversation->vendor_id) {
-            return $conversation->user_id;
-        } else {
-            return $vendorUserId;
+        // If current user is the customer, the receiver is the vendor
+        if ((int) $currentUserId === (int) $conversation->user_id) {
+            return (int) $vendorUserId;
         }
+
+        // Otherwise (current user is the vendor), the receiver is the customer
+        return (int) $conversation->user_id;
+    }
+
+    public function scopeGetReceiverId($query, $conversationId, $currentUserId)
+    {
+        return self::getReceiverId($conversationId, $currentUserId);
     }
 }

@@ -91,21 +91,23 @@ class MessageConversationController extends Controller
                 $messagesNotify =  'طلب شحن جديد من الطلب رقم' . ' ( ' . $request->requestId . ' )';
             }
 
-            $this->notifyByID(
-                userId: $receiverId,
-                title: $messagesNotify,
-                body: $request->body,
-                notifyDB: false,
-                category: 'conversations',
-                extraData: [
-                    'conversation_id' => (string) $request->conversationId,
-                    'message_id' => (string) $created->id,
-                    'sender_id' => (string) $userId,
-                    'body' => (string) ($request->body ?? ''),
-                    'image' => (string) ($fileName ?? ''),
-                    'is_shipping_request' => $request->isSendShippingRequest ? '1' : '0',
-                ]
-            );
+            if ($receiverId && (int) $receiverId !== (int) $userId) {
+                $this->notifyByID(
+                    userId: $receiverId,
+                    title: $messagesNotify,
+                    body: $request->body,
+                    notifyDB: false,
+                    category: 'conversations',
+                    extraData: [
+                        'conversation_id' => (string) $request->conversationId,
+                        'message_id' => (string) $created->id,
+                        'sender_id' => (string) $userId,
+                        'body' => (string) ($request->body ?? ''),
+                        'image' => (string) ($fileName ?? ''),
+                        'is_shipping_request' => $request->isSendShippingRequest ? '1' : '0',
+                    ]
+                );
+            }
 
             // Broadcast real-time message via Reverb WebSocket
             try {
