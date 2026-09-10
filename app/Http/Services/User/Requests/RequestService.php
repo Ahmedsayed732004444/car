@@ -37,7 +37,7 @@ class RequestService
         $this->uploadRequestImage($request->images ?? [],  $createRequest->id);
         $this->createRequestEligibleVendors($createRequest->id, $eligibleVendors);
 
-        return $eligibleVendors;
+        return ['eligibleVendors' => $eligibleVendors, 'requestId' => $createRequest->id];
     }
 
     private function createRequest(Request $request)

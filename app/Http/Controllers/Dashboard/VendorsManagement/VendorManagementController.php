@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Dashboard\VendorsManagement;
 
+use App\Enums\Notifications\NotificationCategoryEnum;
 use App\Enums\StatusUserEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Services\Dashboard\VendorsManagement\VendorManagementService;
@@ -62,7 +63,8 @@ class VendorManagementController extends Controller
             $this->notifyByID(
                 userId: $request->id,
                 title: $message,
-                body: $message
+                body: $message,
+                category: NotificationCategoryEnum::VendorStatus,
             );
             return buildApiResponseHelper(true, $message);
         }

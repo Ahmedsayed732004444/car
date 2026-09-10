@@ -89,4 +89,14 @@ class User extends Authenticatable
     {
         return $query->join('vendors', 'users.id', '=', 'vendors.user_id');
     }
+
+    public function devices()
+    {
+        return $this->hasMany(UserDevice::class);
+    }
+
+    public function activeDevices()
+    {
+        return $this->devices()->active();
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Dashboard\VendorsManagement;
 
+use App\Enums\Notifications\NotificationCategoryEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Services\Dashboard\VendorsManagement\JoinRequestVendorService;
 use App\Traits\NotificationsTrait;
@@ -39,7 +40,8 @@ class JoinRequestVendorController extends Controller
                 $this->notifyByID(
                     userId: $request->userId,
                     title: 'تم قبول طلب انضمامك بنجاح',
-                    body: 'تهانينا! تم قبول طلب انضمام شركتك  بنجاح إلى منصتنا. يمكنك الآن تسجيل الدخول والبدء في استخدام خدماتنا.'
+                    body: 'تهانينا! تم قبول طلب انضمام شركتك  بنجاح إلى منصتنا. يمكنك الآن تسجيل الدخول والبدء في استخدام خدماتنا.',
+                    category: NotificationCategoryEnum::VendorStatus,
                 );
                 return redirect()->route('dashboard.vendors-management.join-requests.index')->with('success', 'تم قبول طلب انضمامك بنجاح');
             } else {
@@ -62,7 +64,8 @@ class JoinRequestVendorController extends Controller
                 $this->notifyByID(
                     userId: $request->userId,
                     title: 'تم رفض طلب انضمامك ',
-                    body: 'تم رفض طلب انضمامك ... ' . ' ' . $request->rejectReason
+                    body: 'تم رفض طلب انضمامك ... ' . ' ' . $request->rejectReason,
+                    category: NotificationCategoryEnum::VendorStatus,
                 );
                 return redirect()->route('dashboard.vendors-management.join-requests.index')->with('success', 'تم رفض طلب الإنظمام ');
             } else {

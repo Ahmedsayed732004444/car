@@ -6,6 +6,7 @@ use App\Enums\StatusUserEnum;
 use App\Enums\user\UserRoleEnum;
 use App\Exceptions\CustomResponseException;
 use App\Http\Repositories\Shared\Auth\AuthRepository;
+use App\Http\Repositories\Shared\Devices\UserDeviceRepository;
 use App\Http\Services\BaseService;
 use App\Models\User;
 use App\Models\Vendor;
@@ -15,7 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthService extends BaseService
 {
-    public function __construct(protected AuthRepository $authRepository) {}
+    public function __construct(protected AuthRepository $authRepository, protected UserDeviceRepository $userDeviceRepository) {}
 
     public function register(Request $request)
     {
@@ -61,6 +62,18 @@ class AuthService extends BaseService
 
         $user->fcm_token = $request->fcmToken;
         $user->save();
+
+        // Old app builds only ever send a token here (no per-device
+        // registration call), so this dual-write is what keeps them getting
+        // pushes at all until they update. See UserDeviceService::register
+        // for the multi-device path new clients use.
+        if (!empty($request->fcmToken)) {
+            $this->userDeviceRepository->registerForUser($user->id, [
+                'token' => $request->fcmToken,
+                'platform' => 'android',
+                'app_version' => 'legacy',
+            ]);
+        }
 
         $userOtp->update(['expire_at' => now()]);
         $token = $user->createToken($request->apiKey, [$user->roles->pluck('name')[0] ?? ''])->plainTextToken;

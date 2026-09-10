@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Enums\Notifications\NotificationCategoryEnum;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -9,22 +10,14 @@ class SendNotification extends Notification
 {
     use Queueable;
 
-    protected $title;
-    protected $body;
-    protected $category;
-    protected $targetId;
-
-    public function __construct($title, $body, $category = 'customer_requests', $targetId = null)
-    {
-        $this->title = $title;
-        $this->body = $body;
-        $this->category = $category;
-        $this->targetId = $targetId;
-    }
+    public function __construct(
+        protected string $title,
+        protected string $body,
+        protected NotificationCategoryEnum $category = NotificationCategoryEnum::Generic,
+        protected ?string $targetId = null,
+    ) {}
 
     /**
-     * Get the notification's delivery channels.
-     *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
@@ -33,8 +26,6 @@ class SendNotification extends Notification
     }
 
     /**
-     * Get the array representation of the notification.
-     *
      * @return array<string, mixed>
      */
     public function toArray(object $notifiable): array
@@ -42,8 +33,9 @@ class SendNotification extends Notification
         return [
             'title' => $this->title,
             'body' => $this->body,
-            'category' => $this->category,
+            'category' => $this->category->value,
             'target_id' => $this->targetId,
+            'badge_category' => $this->category->badgeBucket(),
         ];
     }
 }

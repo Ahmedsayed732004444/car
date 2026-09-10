@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API\V1\Shared\Conversations;
 
+use App\Enums\Notifications\NotificationCategoryEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Services\Shared\ShippingService;
 use App\Models\Conversation;
@@ -91,6 +92,15 @@ class MessageConversationController extends Controller
                 $messagesNotify =  'طلب شحن جديد من الطلب رقم' . ' ( ' . $request->requestId . ' )';
             }
 
+            // Broadcast real-time message via Reverb WebSocket FIRST — the push
+            // send below is now a queue insert (~1ms), but it must never be
+            // able to delay the in-app realtime message either way.
+            try {
+                broadcast(new \App\Events\NewMessage($request->conversationId, $created))->toOthers();
+            } catch (\Throwable $e) {
+                Log::warning('Failed to broadcast NewMessage: ' . $e->getMessage());
+            }
+
             if ($receiverId && (int) $receiverId !== (int) $userId) {
                 $conversation = Conversation::find($request->conversationId);
                 $vendorId = $conversation ? $conversation->vendor_id : 0;
@@ -111,7 +121,8 @@ class MessageConversationController extends Controller
                     title: $messagesNotify,
                     body: $request->body,
                     notifyDB: false,
-                    category: 'conversations',
+                    category: NotificationCategoryEnum::ChatMessage,
+                    targetId: $request->conversationId,
                     extraData: [
                         'conversation_id' => (string) $request->conversationId,
                         'message_id' => (string) $created->id,
@@ -123,13 +134,6 @@ class MessageConversationController extends Controller
                         'is_shipping_request' => $request->isSendShippingRequest ? '1' : '0',
                     ]
                 );
-            }
-
-            // Broadcast real-time message via Reverb WebSocket
-            try {
-                broadcast(new \App\Events\NewMessage($request->conversationId, $created))->toOthers();
-            } catch (\Throwable $e) {
-                Log::warning('Failed to broadcast NewMessage: ' . $e->getMessage());
             }
         }
 

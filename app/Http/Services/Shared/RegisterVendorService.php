@@ -4,13 +4,17 @@ namespace App\Http\Services\Shared;
 
 use App\Enums\StatusUserEnum;
 use App\Enums\user\UserRoleEnum;
+use App\Http\Repositories\Shared\Devices\UserDeviceRepository;
 use App\Http\Repositories\Shared\RegisterVendorRepository;
 use App\Utils\UploadUtils;
 use Illuminate\Http\Request;
 
 class RegisterVendorService
 {
-    public function __construct(protected RegisterVendorRepository $registerVendorRepository) {}
+    public function __construct(
+        protected RegisterVendorRepository $registerVendorRepository,
+        protected UserDeviceRepository $userDeviceRepository,
+    ) {}
 
     public function registerVendor(Request $request)
     {
@@ -22,6 +26,14 @@ class RegisterVendorService
         ]);
 
         $createUser->assignRole(UserRoleEnum::Vendor->value);
+
+        if (!empty($request->fcmToken)) {
+            $this->userDeviceRepository->registerForUser($createUser->id, [
+                'token' => $request->fcmToken,
+                'platform' => 'android',
+                'app_version' => 'legacy',
+            ]);
+        }
 
         $createVendor = $this->registerVendorRepository->createVendor([
             'user_id' => $createUser->id,

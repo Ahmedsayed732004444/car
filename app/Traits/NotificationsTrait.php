@@ -2,67 +2,86 @@
 
 namespace App\Traits;
 
-use App\Enums\user\UserRoleEnum;
-use App\Utils\FcmNotificationUtils;
-use App\Models\User;
-use App\Notifications\SendNotification;
+use App\Enums\Notifications\NotificationCategoryEnum;
+use App\Http\Services\Shared\Notifications\NotificationDispatcherService;
 use Illuminate\Http\Request;
 
 trait NotificationsTrait
 {
-
-    public function notifyToAdmin($title, $body)
+    protected function dispatcher(): NotificationDispatcherService
     {
-        $admins = User::role([UserRoleEnum::Super_Admin->value, UserRoleEnum::Admin->value], 'admin')->get();
-        foreach ($admins as $admin) {
-            $admin->notify(new SendNotification(title: $title, body: $body));
-        }
+        return app(NotificationDispatcherService::class);
     }
 
-    public function notifyRequestToEligibleVendors($vendors, $requestId = null)
-    {
-        foreach ($vendors as $vendor) {
-            $user = User::where('id', $vendor->user_id)->first(['id', 'fcm_token']);
-            if ($user) {
-                $user->notify(new SendNotification(title: 'طلب جديد', body: 'تم اضافة طلب جديد', category: 'customer_requests', targetId: $requestId));
-                (new FcmNotificationUtils())
-                    ->setTitle('طلب جديد')
-                    ->setBody('تم اضافة طلب جديد')
-                    ->setCategory('customer_requests')
-                    ->setExtraData(['target_id' => (string) $requestId])
-                    ->setToken($user->fcm_token)
-                    ->send();
-            }
-        }
+    public function notifyToAdmin(
+        string $title,
+        string $body,
+        NotificationCategoryEnum $category = NotificationCategoryEnum::Generic,
+        $targetId = null,
+    ) {
+        $this->dispatcher()->toAdmins($category, $title, $body, $targetId !== null ? (string) $targetId : null);
     }
 
-    public function notifyByID($userId, $title, $body, $notifyDB = true, $category = 'conversations', $targetId = null, array $extraData = [])
+    /**
+     * @param iterable $vendors Vendor rows/models carrying at least `user_id`.
+     */
+    public function notifyRequestToEligibleVendors($vendors, ?int $requestId = null)
     {
-        $user = User::where('id', $userId)->first(['id', 'fcm_token']);
-        if ($user) {
-            if ($notifyDB) {
-                $user->notify(new SendNotification(title: $title, body: $body, category: $category, targetId: $targetId));
-            }
-            
-            if ($targetId && !isset($extraData['target_id'])) {
-                $extraData['target_id'] = (string) $targetId;
-            }
-            
-            (new FcmNotificationUtils())
-                ->setTitle($title)
-                ->setBody($body)
-                ->setCategory($category)
-                ->setExtraData($extraData)
-                ->setToken($user->fcm_token)
-                ->send();
+        $userIds = collect($vendors)->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->values()->all();
+
+        $this->dispatcher()->toUsers(
+            userIds: $userIds,
+            category: NotificationCategoryEnum::NewRequest,
+            title: 'طلب جديد',
+            body: 'تم اضافة طلب جديد',
+            targetId: $requestId !== null ? (string) $requestId : null,
+        );
+    }
+
+    /**
+     * @param NotificationCategoryEnum|string $category Accepts the old raw
+     *        category strings too, so callers that haven't been updated yet
+     *        still work during the migration.
+     */
+    public function notifyByID(
+        $userId,
+        string $title,
+        string $body,
+        bool $notifyDB = true,
+        NotificationCategoryEnum|string $category = NotificationCategoryEnum::ChatMessage,
+        $targetId = null,
+        array $extraData = [],
+    ) {
+        if (is_string($category)) {
+            $category = $this->legacyStringToCategory($category);
         }
+
+        $this->dispatcher()->toUser(
+            userId: (int) $userId,
+            category: $category,
+            title: $title,
+            body: $body,
+            targetId: $targetId !== null ? (string) $targetId : null,
+            params: $extraData,
+            persist: $notifyDB,
+        );
+    }
+
+    private function legacyStringToCategory(string $legacy): NotificationCategoryEnum
+    {
+        return match ($legacy) {
+            'conversations' => NotificationCategoryEnum::ChatMessage,
+            'company_responses' => NotificationCategoryEnum::VendorResponse,
+            'customer_requests' => NotificationCategoryEnum::NewRequest,
+            default => NotificationCategoryEnum::Generic,
+        };
     }
 
     public function getNotifications(Request $request)
     {
         $user = currUserHelper();
         $notifications = $user->notifications()
-            ->select('id', 'data', 'created_at')
+            ->select('id', 'data', 'category', 'target_id', 'read_at', 'created_at')
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
@@ -73,15 +92,12 @@ trait NotificationsTrait
                 'id' => $item->id,
                 'title' => $data['title'] ?? null,
                 'body' => $data['body'] ?? null,
+                'category' => $item->category,
+                'target_id' => $item->target_id,
+                'read_at' => $item->read_at?->format('Y-m-d H:i'),
                 'created_at' => $item->created_at->format('Y-m-d H:i'),
             ];
         });
-
-        // return buildApiResponseHelper(true, 'تم التحميل بنجاح', [
-        //     'current_page' => $result->currentPage(),
-        //     'last_page' => $result->lastPage(),
-        //     'data' => $result->items(),
-        // ]);
 
         return buildApiResponseHelper(true, 'تم التحميل بنجاح', [
             'current_page' => $notifications->currentPage(),

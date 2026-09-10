@@ -42,7 +42,13 @@ return [
                 'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
             ],
             'client_options' => [
-                // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html
+                // A NotificationBadgeUpdated/NewMessage broadcast runs inside a
+                // queue job (and, for NewMessage, inline in the chat request).
+                // Without a timeout, an unreachable Reverb server stalls that
+                // job/request for Guzzle's ~10s default instead of failing fast
+                // into the try/catch around it.
+                'timeout' => 3,
+                'connect_timeout' => 2,
             ],
         ],
 

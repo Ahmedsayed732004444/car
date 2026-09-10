@@ -41,4 +41,21 @@ return [
         'access_token' => env('OTO_ACCESS_TOKEN'),
     ],
 
+    'fcm' => [
+        'project_id' => env('FCM_PROJECT_ID', 'car-mediator-platform'),
+        'credentials_path' => storage_path('app/json/firebase/car-mediator-platform-firebase-adminsdk-fbsvc-1d8876fe49.json'),
+        'timeout' => env('FCM_TIMEOUT', 10),
+        'ttl' => env('FCM_TTL', 3600),
+        // Data-only Android messages (no top-level `notification` block). Off by
+        // default so installed clients keep displaying pushes in background; flip
+        // once app_version adoption of the new client is high. See notification
+        // upgrade plan, Phase 6.
+        'android_data_only' => env('NOTIFICATIONS_ANDROID_DATA_ONLY', false),
+        'queue' => env('NOTIFICATIONS_QUEUE', 'notifications'),
+        // Escape hatch: dispatch push jobs synchronously if no worker is confirmed running yet.
+        'queue_sync' => env('NOTIFICATIONS_QUEUE_SYNC', false),
+        'max_send_attempts' => 3,
+        'retry_delays' => [10, 60, 300],
+    ],
+
 ];

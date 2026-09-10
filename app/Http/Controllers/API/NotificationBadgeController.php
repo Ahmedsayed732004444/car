@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Services\Shared\Notifications\NotificationCountsService;
 use App\Models\Conversation;
 use App\Models\MessageConversation;
 use App\Models\Vendor;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 
 class NotificationBadgeController extends Controller
 {
+    public function __construct(protected NotificationCountsService $counts) {}
+
     /**
      * Get unread notification counts grouped by section and per-entity.
      */
@@ -20,101 +23,12 @@ class NotificationBadgeController extends Controller
         try {
             $user = $request->user();
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthenticated'
-                ], 401);
-            }
-
-            $userId = $user->id;
-            $isVendor = Vendor::where('user_id', $userId)->exists();
-
-            // Fetch unread notifications collection safely
-            $unreadNotifications = $user->unreadNotifications()->get();
-
-            // 1. Unread Customer Requests (For Vendors)
-            $customerRequestsCount = 0;
-            $customerRequestsEntityCounts = [];
-
-            // 2. Unread Company Responses (For Customers)
-            $companyResponsesCount = 0;
-            $companyResponsesEntityCounts = [];
-
-            foreach ($unreadNotifications as $item) {
-                $data = is_array($item->data) ? $item->data : (json_decode($item->data, true) ?? []);
-                $category = (string)($data['category'] ?? '');
-                $title = (string)($data['title'] ?? '');
-                $body = (string)($data['body'] ?? '');
-                $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
-
-                if ($category === 'company_responses' || str_contains($title, 'رد') || str_contains($body, 'الرد')) {
-                    $companyResponsesCount++;
-                    if ($targetId !== '') {
-                        $companyResponsesEntityCounts[$targetId] = ($companyResponsesEntityCounts[$targetId] ?? 0) + 1;
-                    }
-                } elseif ($category === 'customer_requests' || str_contains($title, 'طلب جديد') || str_contains($body, 'طلب جديد')) {
-                    $customerRequestsCount++;
-                    if ($targetId !== '') {
-                        $customerRequestsEntityCounts[$targetId] = ($customerRequestsEntityCounts[$targetId] ?? 0) + 1;
-                    }
-                }
-            }
-
-            // Sync section count strictly with specific unread entity counts if present
-            if (!empty($customerRequestsEntityCounts)) {
-                $customerRequestsCount = array_sum($customerRequestsEntityCounts);
-            }
-            if (!empty($companyResponsesEntityCounts)) {
-                $companyResponsesCount = array_sum($companyResponsesEntityCounts);
-            }
-
-            // 3. Unread Conversations (For both Users & Vendors)
-            $userConversationIds = Conversation::where('user_id', $userId)
-                ->orWhere('vendor_id', $userId)
-                ->pluck('id');
-
-            $conversationsCount = 0;
-            $conversationEntityCounts = [];
-            $requestConversationsEntityCounts = [];
-
-            if ($userConversationIds->isNotEmpty()) {
-                $rawCounts = MessageConversation::join('conversations', 'message_conversations.conversation_id', '=', 'conversations.id')
-                    ->whereIn('message_conversations.conversation_id', $userConversationIds)
-                    ->where('message_conversations.sender_id', '!=', $userId)
-                    ->where(function ($q) {
-                        $q->where('message_conversations.read', 0)->orWhere('message_conversations.read', false)->orWhereNull('message_conversations.read');
-                    })
-                    ->select('message_conversations.conversation_id', 'conversations.request_id', DB::raw('count(*) as count'))
-                    ->groupBy('message_conversations.conversation_id', 'conversations.request_id')
-                    ->get();
-
-                foreach ($rawCounts as $row) {
-                    $conversationEntityCounts[(string)$row->conversation_id] = (int)$row->count;
-                    if ($row->request_id) {
-                        $requestConversationsEntityCounts[(string)$row->request_id] = ($requestConversationsEntityCounts[(string)$row->request_id] ?? 0) + (int)$row->count;
-                    }
-                    $conversationsCount += (int)$row->count;
-                }
+                return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
             }
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'customer_requests' => (int)$customerRequestsCount,
-                    'company_responses' => (int)$companyResponsesCount,
-                    'conversations' => (int)$conversationsCount,
-                    'sections' => [
-                        'customer_requests' => (int)$customerRequestsCount,
-                        'company_responses' => (int)$companyResponsesCount,
-                        'conversations' => (int)$conversationsCount,
-                    ],
-                    'entities' => [
-                        'conversations' => $conversationEntityCounts,
-                        'request_conversations' => $requestConversationsEntityCounts,
-                        'customer_requests' => $customerRequestsEntityCounts,
-                        'company_responses' => $companyResponsesEntityCounts,
-                    ]
-                ]
+                'data' => $this->counts->unreadCountsForUser($user->id),
             ]);
         } catch (\Throwable $e) {
             Log::error("[NotificationBadgeController] unreadCounts ERROR: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
@@ -144,38 +58,17 @@ class NotificationBadgeController extends Controller
                 MessageConversation::where('conversation_id', $entityId)
                     ->where('sender_id', '!=', $userId)
                     ->update(['read' => 1]);
-            } elseif ($section === 'customer_requests' || $section === 'company_responses') {
-                if ($entityId) {
-                    $notifications = DB::table('notifications')
-                        ->where('notifiable_type', get_class($user))
-                        ->where('notifiable_id', $userId)
-                        ->whereNull('read_at')
-                        ->get();
-
-                    $foundSpecific = false;
-                    foreach ($notifications as $notif) {
-                        $data = json_decode($notif->data, true) ?? [];
-                        $targetId = (string)($data['target_id'] ?? $data['entity_id'] ?? $data['request_id'] ?? '');
-                        if ($targetId === (string)$entityId) {
-                            DB::table('notifications')
-                                ->where('id', $notif->id)
-                                ->update(['read_at' => now()]);
-                            $foundSpecific = true;
-                        }
-                    }
-
-                    if (!$foundSpecific && $notifications->isNotEmpty()) {
-                        DB::table('notifications')
-                            ->where('id', $notifications->first()->id)
-                            ->update(['read_at' => now()]);
-                    }
-                } else {
-                    DB::table('notifications')
-                        ->where('notifiable_type', get_class($user))
-                        ->where('notifiable_id', $userId)
-                        ->whereNull('read_at')
-                        ->update(['read_at' => now()]);
-                }
+            } elseif (in_array($section, ['customer_requests', 'company_responses'], true) && $entityId) {
+                // Exact match only — the old code fell back to marking the
+                // first unread notification when nothing matched target_id,
+                // which read the wrong notification as read.
+                DB::table('notifications')
+                    ->where('notifiable_type', get_class($user))
+                    ->where('notifiable_id', $userId)
+                    ->where('badge_category', $section)
+                    ->where('target_id', (string) $entityId)
+                    ->whereNull('read_at')
+                    ->update(['read_at' => now()]);
             }
 
             return $this->unreadCounts($request);
@@ -202,17 +95,20 @@ class NotificationBadgeController extends Controller
             $category = $request->input('category');
             $userId = $user->id;
 
-            // Direct DB update for notifications
-            DB::table('notifications')
-                ->where('notifiable_type', get_class($user))
-                ->where('notifiable_id', $userId)
-                ->whereNull('read_at')
-                ->update(['read_at' => now()]);
+            if (in_array($category, ['customer_requests', 'company_responses'], true)) {
+                // Scoped to the requested category — the old code marked
+                // EVERY unread notification read regardless of $category.
+                DB::table('notifications')
+                    ->where('notifiable_type', get_class($user))
+                    ->where('notifiable_id', $userId)
+                    ->where('badge_category', $category)
+                    ->whereNull('read_at')
+                    ->update(['read_at' => now()]);
+            } elseif ($category === 'conversations') {
+                $vendorId = Vendor::where('user_id', $userId)->value('id');
 
-            // Direct DB update for conversations messages
-            if ($category === 'conversations') {
                 $userConversationIds = Conversation::where('user_id', $userId)
-                    ->orWhere('vendor_id', $userId)
+                    ->when($vendorId, fn ($q) => $q->orWhere('vendor_id', $vendorId))
                     ->pluck('id');
 
                 if ($userConversationIds->isNotEmpty()) {

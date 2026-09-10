@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API\V1\Shared\Complaints;
 
+use App\Enums\Notifications\NotificationCategoryEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shared\Complaints\CreateComplaintVendorServiceRequest;
 use App\Http\Services\Shared\ComplaintService;
@@ -20,7 +21,12 @@ class ComplaintController extends Controller
         if (!$created)
             return buildApiResponseHelper(false, 'لم يتم تسجيل البلاغ ... الرجاء المحاولة مرة اخرى');
 
-        $this->notifyToAdmin(title: 'بلاغ جديد', body: 'بلاغ عن الطلب (' . $request->requestId . ') ' . ' - الرد رقم (' . $request->responseId . ')');
+        $this->notifyToAdmin(
+            title: 'بلاغ جديد',
+            body: 'بلاغ عن الطلب (' . $request->requestId . ') ' . ' - الرد رقم (' . $request->responseId . ')',
+            category: NotificationCategoryEnum::ComplaintFiled,
+            targetId: $created->id,
+        );
 
         return buildApiResponseHelper(true, 'تم تسجيل البلاغ بنجاح ... سيتم الرد عليك من قبل الإدارة لاحقاً');
     }

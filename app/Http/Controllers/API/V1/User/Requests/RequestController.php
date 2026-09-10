@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API\V1\User\Requests;
 
+use App\Enums\Notifications\NotificationCategoryEnum;
 use App\Exceptions\CustomResponseException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Request\{CheckEligibleVendorsRequest, ConfirmOrderRequest, ConfirmPriceShippingRequest, ConfirmShippingRequest};
@@ -36,10 +37,10 @@ class RequestController extends Controller
     {
         DB::beginTransaction();
         try {
-            $eligibleVendors = $this->requestService->confirmRequest($request);
+            ['eligibleVendors' => $eligibleVendors, 'requestId' => $newRequestId] = $this->requestService->confirmRequest($request);
 
             DB::commit();
-            $this->notifyRequestToEligibleVendors($eligibleVendors);
+            $this->notifyRequestToEligibleVendors($eligibleVendors, $newRequestId);
 
             return buildApiResponseHelper(true, 'تم إرسال الطلب بنجاح ... سيتم الرد عليك من خلال الشركات المؤهلة لاحقاً');
         } catch (Exception $e) {
@@ -152,7 +153,7 @@ class RequestController extends Controller
         if (!$updated)
             return buildApiResponseHelper(false, 'حدث خطاء في تاكيد الشحنة ... الرجاء المحاولة مرة اخرى');
 
-        $this->notifyToAdmin('طلب شحنة جديد', 'هناك طلب شحنة جديد ... طلب شحنة جديد');
+        $this->notifyToAdmin('طلب شحنة جديد', 'هناك طلب شحنة جديد ... طلب شحنة جديد', NotificationCategoryEnum::ShippingRequest, $request->id);
 
         // Dispatch Email Notification to Admin Emails
         \App\Jobs\SendNewShippingRequestNotificationJob::dispatch($request->id);

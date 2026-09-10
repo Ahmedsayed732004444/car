@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API\V1\Vendor;
 
+use App\Enums\Notifications\NotificationCategoryEnum;
 use App\Exceptions\CustomResponseException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Vendor\ResponseRequest\SendResponseRequest;
@@ -41,13 +42,12 @@ class ResponseRequestController extends Controller
 
             DB::commit();
 
-            // Pass category 'company_responses' and targetId = $request->requestId
             $this->notifyByID(
                 $requestResponse->user_id,
                 'رد جديد',
                 'تم الرد على طلبك من ' . ' ' . $requestResponse->company_name_ar,
                 true,
-                'company_responses',
+                NotificationCategoryEnum::VendorResponse,
                 $request->requestId
             );
 

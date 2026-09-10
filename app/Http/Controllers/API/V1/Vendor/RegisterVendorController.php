@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API\V1\Vendor;
 
+use App\Enums\Notifications\NotificationCategoryEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Vendor\RegisterVendor\CreateRegisterVendorRequest;
 use App\Http\Services\Shared\RegisterVendorService;
@@ -21,7 +22,11 @@ class RegisterVendorController extends Controller
             $this->registerVendorService->registerVendor($request);
 
             DB::commit();
-            $this->notifyToAdmin(title: 'طلب إنضمام جديد', body: 'هناك طلب إنظمام جديد ... طلب ÷نشاء حساب شركة جديد');
+            $this->notifyToAdmin(
+                title: 'طلب إنضمام جديد',
+                body: 'هناك طلب إنظمام جديد ... طلب ÷نشاء حساب شركة جديد',
+                category: NotificationCategoryEnum::VendorJoinRequest,
+            );
             return buildApiResponseHelper(true, 'تم التسجيل بنجاح ... سيتم الرد عليك من قبل الإدارة لاحقاً');
         } catch (\Exception $e) {
             DB::rollBack();
